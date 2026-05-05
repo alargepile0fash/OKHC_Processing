@@ -78,11 +78,11 @@ def process_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     logger.info("Normalizing 'text' column...")
     # Apply text normalization in parallel
-    df_processed["text"] = df_processed["text"].parallel_apply(normalize_text)
+    df_processed["text"] = df_processed["text"].apply(normalize_text)
 
     logger.info("Computing script ratios...")
     # Compute script ratios (e.g., kor, han, lat)
-    script_ratios: pd.Series = df_processed["text"].parallel_apply(lambda x: tool.compute_script_ratio(x))
+    script_ratios: pd.Series = df_processed["text"].apply(lambda x: tool.compute_script_ratio(x))
     df_script = pd.json_normalize(script_ratios)
     df_script.rename(columns=lambda x: f"script.{x}", inplace=True)
 
@@ -97,7 +97,7 @@ def process_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         "spa_Latn",  # Spanish
     ]
     # Compute language and score
-    lid_results: pd.Series = df_processed["text"].parallel_apply(
+    lid_results: pd.Series = df_processed["text"].apply(
         lambda x: utils_lid.langid_custom(text=x, languages=languages, mode="before")
     )
     df_lid = pd.DataFrame(lid_results.tolist(), columns=["language", "language_score"])
