@@ -8,3 +8,4 @@ pyahocorasick
 pyarrow
 regex
 tqdm
+unicodedata

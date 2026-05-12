@@ -24,7 +24,7 @@ This dataset is a large-scale collection of texts spanning 1,300 years of Korean
 
 The full corpus is available for download on the Hugging Face Hub.
 
-- **Sample (1.3 MB)**: [`./sample.jsonl`](./sample.jsonl)
+- **Sample (1.3 MB)**: [`./sample.jsonl`](analysis/sample.jsonl)
 - **Dataset (28.6 GB)**: https://huggingface.co/datasets/seyoungsong/Open-Korean-Historical-Corpus
 
 ## Repository Contents
