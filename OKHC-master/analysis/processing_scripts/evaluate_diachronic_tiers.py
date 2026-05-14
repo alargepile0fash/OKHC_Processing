@@ -1,26 +1,47 @@
 import math
 import itertools
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import pandas as pd
+
+
+# ============================================================
+# PROJECT PATHS
+# ============================================================
+
+# This script is located at:
+# OKHC-master/analysis/processing_scripts/evaluate_diachronic_tiers.py
+#
+# parents[0] = processing_scripts
+# parents[1] = analysis
+# parents[2] = OKHC-master
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT))
 
 
 # ============================================================
 # SETTINGS
 # ============================================================
 
-INPUT_FILE = "hangul_vowel_tokens.csv"
-OUTPUT_FILE = "tier_results_by_period.csv"
+ANALYSIS_OUTPUT_DIR = REPO_ROOT / "analysis" / "processing_test"
+ANALYSIS_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ANALYSIS_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# If True, exclude rows where period == unknown.
+# This is the CSV made by extract_diachronic_hangul_vowels.py
+INPUT_FILE = ANALYSIS_OUTPUT_DIR / "hangul_vowel_tokens_diachronic.csv"
+
+# Output files
+RESULTS_OUTPUT = ANALYSIS_OUTPUT_DIR / "tier_results_by_period.csv"
+
 EXCLUDE_UNKNOWN_PERIOD = True
 
-# Optional category filtering.
+# Optional filtering
+ALLOWED_CATEGORIES = None
 # Example:
 # ALLOWED_CATEGORIES = {"ko", "oko", "hj+ko", "hj+oko"}
-ALLOWED_CATEGORIES = None
 
-# If True, exclude pure Hanmun/Hanja category rows.
 EXCLUDE_PURE_HJ = False
 
 
@@ -258,15 +279,30 @@ def parse_vowel_sequence(value) -> list[str]:
 def load_vowel_sequences_by_period(input_file: str) -> dict[str, list[list[str]]]:
     df = pd.read_csv(input_file)
 
-    df = df[df.apply(should_keep_row, axis=1)].copy()
+    period_column = "period_50yr"
+
+    if period_column not in df.columns:
+        raise KeyError(
+            f"Expected column '{period_column}' in {input_file}, "
+            f"but found columns: {df.columns.tolist()}"
+        )
+
+    if EXCLUDE_UNKNOWN_PERIOD:
+        df = df[df[period_column] != "unknown"].copy()
+
+    if EXCLUDE_PURE_HJ and "category" in df.columns:
+        df = df[df["category"] != "hj"].copy()
+
+    if ALLOWED_CATEGORIES is not None and "category" in df.columns:
+        df = df[df["category"].isin(ALLOWED_CATEGORIES)].copy()
 
     period_to_sequences = {}
 
-    for period, group in df.groupby("period"):
+    for period, group in df.groupby(period_column):
         sequences = []
 
         for value in group["vowels"].dropna():
-            vowels = parse_vowel_sequence(value)
+            vowels = [v.strip() for v in str(value).split(",") if v.strip()]
 
             if len(vowels) >= 2:
                 sequences.append(vowels)
@@ -366,10 +402,10 @@ def main():
             )
 
     results_df = pd.DataFrame(all_results)
-    results_df.to_csv(OUTPUT_FILE, index=False, encoding="utf-8-sig")
+    results_df.to_csv(RESULTS_OUTPUT, index=False, encoding="utf-8-sig")
 
     print()
-    print(f"Saved period results to {OUTPUT_FILE}")
+    print(f"Saved period results to {RESULTS_OUTPUT}")
 
 
 if __name__ == "__main__":
