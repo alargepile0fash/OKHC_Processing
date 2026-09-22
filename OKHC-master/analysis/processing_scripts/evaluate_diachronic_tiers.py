@@ -25,7 +25,7 @@ sys.path.insert(0, str(REPO_ROOT))
 # SETTINGS
 # ============================================================
 
-ANALYSIS_OUTPUT_DIR = REPO_ROOT / "analysis" / "processing_test"
+ANALYSIS_OUTPUT_DIR = REPO_ROOT / "analysis" / "analyzed_data"
 ANALYSIS_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ANALYSIS_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -225,22 +225,43 @@ def find_least_stipulative_tier(
     """
     vowels = sorted(ALL_VOWELS)
 
-    for k in range(len(vowels) + 1):
-        for excluded_tuple in itertools.combinations(vowels, k):
-            excluded = set(excluded_tuple)
+    candidate_exclusions = []
 
-            result = evaluate_tier(
-                period=period,
-                vowel_sequences=vowel_sequences,
-                excluded=excluded,
-                counting_mode=counting_mode,
+    for r in range(len(vowels) + 1):
+        for excluded_tuple in itertools.combinations(vowels, r):
+            candidate_exclusions.append(excluded_tuple)
+
+    print(
+        f"Searching {len(candidate_exclusions)} candidate tiers "
+        f"for period={period}, counting_mode={counting_mode}",
+        flush=True,
+    )
+
+    for i, excluded_tuple in enumerate(candidate_exclusions, start=1):
+        if i == 1 or i % 10 == 0 or i == len(candidate_exclusions):
+            print(
+                f"  Testing candidate {i}/{len(candidate_exclusions)}: "
+                f"excluded={excluded_tuple}",
+                flush=True,
             )
 
-            if result.satisfies_tp:
-                return result
+        excluded = set(excluded_tuple)
+
+        result = evaluate_tier(
+            period=period,
+            vowel_sequences=vowel_sequences,
+            excluded=excluded,
+            counting_mode=counting_mode,
+        )
+
+        if result.satisfies_tp:
+            print(
+                f"  Found satisfying tier at candidate {i}/{len(candidate_exclusions)}",
+                flush=True,
+            )
+            return result
 
     return None
-
 
 # ============================================================
 # DATA LOADING
@@ -366,22 +387,51 @@ def print_result(result: TierResult | None, period: str, counting_mode: str) -> 
 # ============================================================
 
 def main():
+    print("Starting evaluate_diachronic_tiers.py...", flush=True)
+    print(f"Input file: {INPUT_FILE}", flush=True)
+
     period_to_sequences = load_vowel_sequences_by_period(INPUT_FILE)
 
     if not period_to_sequences:
-        print("No vowel sequences found after filtering.")
+        print("No vowel sequences found after filtering.", flush=True)
         return
+
+    print(f"Loaded {len(period_to_sequences)} periods.", flush=True)
+
+    for period, sequences in period_to_sequences.items():
+        print(
+            f"Period {period}: {len(sequences)} vowel sequences loaded.",
+            flush=True,
+        )
 
     all_results = []
 
     for period in sorted(period_to_sequences.keys()):
         vowel_sequences = period_to_sequences[period]
 
-        print()
-        print("=" * 70)
-        print(f"PERIOD: {period}")
-        print(f"Number of vowel sequences: {len(vowel_sequences)}")
-        print("=" * 70)
+        print("=" * 80, flush=True)
+        print(f"Starting period: {period}", flush=True)
+        print(f"Number of sequences: {len(vowel_sequences)}", flush=True)
+
+        for counting_mode in ["prediction", "word"]:
+            print(f"Starting counting mode: {counting_mode}", flush=True)
+
+            result = find_least_stipulative_tier(
+                period=period,
+                vowel_sequences=vowel_sequences,
+                counting_mode=counting_mode,
+            )
+
+            print()
+            print_result(result, period, counting_mode)
+
+            all_results.append(
+                result_to_dict(
+                    result=result,
+                    period=period,
+                    counting_mode=counting_mode,
+                )
+            )
 
         for counting_mode in ["prediction", "word"]:
             result = find_least_stipulative_tier(

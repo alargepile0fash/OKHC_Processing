@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import sys
 import shutil
 
@@ -17,21 +18,37 @@ from preprocessing.classification_logic import classify_dataframe
 # ============================================================
 
 # Folder containing your raw full-corpus JSONL files.
-# Change this to wherever your downloaded raw corpus files are.
-INPUT_DIR = r"C:\Users\ashle\PycharmProjects\OKHC_Processing\OKHC-master\analysis\processing_scripts"
+#
+# You can override this without editing the file:
+#   Windows PowerShell:
+#       $env:OKHC_RAW_INPUT="C:\path\to\raw_data"
+#   Colab / bash:
+#       import os
+#       os.environ["OKHC_RAW_INPUT"] = "/content/drive/MyDrive/.../raw_data"
+INPUT_DIR = os.environ.get(
+    "OKHC_RAW_INPUT",
+    str(REPO_ROOT / "raw_data"),
+)
 
 # Folder where processed JSONL files will be written.
-OUTPUT_DIR = r"C:\Users\ashle\PycharmProjects\OKHC_Processing\OKHC-master\analysis\processing_test"
+#
+# You can override this with OKHC_PROCESSED_OUTPUT.
+OUTPUT_DIR = os.environ.get(
+    "OKHC_PROCESSED_OUTPUT",
+    str(REPO_ROOT / "analysis" / "analyzed_data"),
+)
 
 # The script will recursively search INPUT_DIR for these file types.
 INPUT_PATTERNS = ["*.jsonl", "*.jsonl.gz"]
 
 # Number of JSONL records to process at once.
 # Increase if your computer handles it easily; decrease if you run out of RAM.
-CHUNK_SIZE = 10_000
+CHUNK_SIZE = int(os.environ.get("OKHC_PREPROCESSING_CHUNK_SIZE", "10000"))
 
 # If True, skip files whose processed output already exists.
-SKIP_EXISTING_OUTPUT = True
+SKIP_EXISTING_OUTPUT = os.environ.get("OKHC_SKIP_EXISTING_OUTPUT", "1").strip().lower() not in {
+    "0", "false", "no", "n"
+}
 
 
 # ============================================================
@@ -218,6 +235,11 @@ def preprocess_corpus(input_dir: str, output_dir: str) -> None:
         raise FileNotFoundError(
             f"No input files found in {input_dir!r} matching {INPUT_PATTERNS}"
         )
+
+    print(f"Input directory:  {Path(input_dir).resolve()}")
+    print(f"Output directory: {Path(output_dir).resolve()}")
+    print(f"Chunk size:       {CHUNK_SIZE:,}")
+    print(f"Skip existing:    {SKIP_EXISTING_OUTPUT}")
 
     print(f"Found {len(input_files)} input files.")
     for path in input_files[:10]:
