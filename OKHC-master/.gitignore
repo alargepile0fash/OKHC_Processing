@@ -2,6 +2,7 @@
 /temp.*
 **/data/**/.gitattributes
 *_classified.jsonl
+*.jsonl
 
 # General
 .DS_Store
