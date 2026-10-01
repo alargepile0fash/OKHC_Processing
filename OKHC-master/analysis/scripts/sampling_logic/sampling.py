@@ -78,10 +78,14 @@ def select_wordforms(
 
     if args.sampling_mode == "strict-balanced":
         selected_n = int(eligible["available_wordforms_before_sampling"].min())
-        if args.max_wordforms_per_window is not None:
-            selected_n = min(selected_n, args.max_wordforms_per_window)
     else:
         selected_n = args.target_wordforms_per_window
+
+    # Apply the configured hard cap in both sampling modes. In
+    # cap-preserve-windows mode this prevents max_wordforms_per_window from
+    # being silently ignored.
+    if args.max_wordforms_per_window is not None:
+        selected_n = min(selected_n, args.max_wordforms_per_window)
 
     diagnostics["selected_sample_size_for_window"] = diagnostics.apply(
         lambda row: min(int(row["available_wordforms_before_sampling"]), selected_n)

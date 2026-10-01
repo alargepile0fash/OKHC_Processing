@@ -33,7 +33,16 @@ def main() -> None:
         output_dir = PROJECT_ROOT / output_dir
 
     header = pd.read_csv(input_csv, nrows=0, encoding="utf-8-sig")
-    required = [args.year_col, args.token_col, args.vowels_col, "token_source"]
+    required = [
+        args.year_col,
+        args.token_col,
+        args.vowels_col,
+        "token_source",
+        "vowel_classes_core",
+        "harmony_status_core",
+        "vowel_classes_expanded",
+        "harmony_status_expanded",
+    ]
     missing = [column for column in required if column not in header.columns]
     if missing:
         raise ValueError(f"Missing required columns: {', '.join(missing)}")
