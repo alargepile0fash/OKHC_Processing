@@ -29,10 +29,10 @@ sys.path.insert(0, str(REPO_ROOT))
 # ============================================================
 
 # This reads the PROCESSED corpus files created by run_preprocessing.py.
-INPUT_DIR = REPO_ROOT / "analysis" / "analyzed_data"
+INPUT_DIR = REPO_ROOT / "analysis" / "data"
 
 # This is where analysis-ready output files go.
-OUTPUT_DIR = REPO_ROOT / "analysis" / "analyzed_data"
+OUTPUT_DIR = REPO_ROOT / "analysis" / "data"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 OUTPUT_FILE = OUTPUT_DIR / "hangul_vowel_tokens_diachronic.csv"

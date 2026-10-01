@@ -35,7 +35,7 @@ INPUT_DIR = os.environ.get(
 # You can override this with OKHC_PROCESSED_OUTPUT.
 OUTPUT_DIR = os.environ.get(
     "OKHC_PROCESSED_OUTPUT",
-    str(REPO_ROOT / "analysis" / "analyzed_data"),
+    str(REPO_ROOT / "analysis" / "data"),
 )
 
 # The script will recursively search INPUT_DIR for these file types.

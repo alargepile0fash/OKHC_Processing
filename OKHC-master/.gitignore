@@ -4,6 +4,7 @@
 *_classified.jsonl
 *.jsonl
 *.idea/
+*.csv
 # General
 .DS_Store
 .AppleDouble
