@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import shutil
 import subprocess
@@ -62,7 +63,40 @@ def run(script: Path, *extra_args: str) -> None:
     subprocess.run(command, cwd=REPO_ROOT, check=True)
 
 
+def test_harmony_classification() -> None:
+    """Check the core/expanded distinction on representative vowel sequences."""
+    module_path = REPO_ROOT / "analysis" / "scripts" / "02_extract_diachronic_vowels.py"
+    spec = importlib.util.spec_from_file_location("extract_diachronic_vowels", module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError("Could not load the extraction module for classification tests.")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    cases = [
+        (["ㅏ", "ㅗ"], "harmonic", "harmonic"),
+        (["ㅏ", "ㅣ", "ㅗ"], "harmonic_with_neutral", "harmonic_with_neutral"),
+        (["ㅏ", "ㅓ"], "disharmonic", "disharmonic"),
+        (["ㅏ", "ㅑ"], "unclassifiable_due_to_other", "harmonic"),
+        (["ㅏ", "ㅘ"], "unclassifiable_due_to_other", "harmonic"),
+        (["ㅘ", "ㅝ"], "unclassifiable_due_to_other", "disharmonic"),
+        (["ㅏ", "ㅢ"], "unclassifiable_due_to_other", "harmonic"),
+    ]
+
+    for vowels, expected_core, expected_expanded in cases:
+        core = module.classify_vowel_sequence(vowels, "core")
+        expanded = module.classify_vowel_sequence(vowels, "expanded")
+        if core != expected_core or expanded != expected_expanded:
+            raise AssertionError(
+                f"Classification failed for {''.join(vowels)}: "
+                f"core={core!r} (expected {expected_core!r}), "
+                f"expanded={expanded!r} (expected {expected_expanded!r})"
+            )
+
+    print("PASS: core and nucleus-based expanded harmony classifications behave as expected.")
+
+
 def main() -> None:
+    test_harmony_classification()
     config = load_config(parse_args().config)
 
     if config["output_dir"].exists():
