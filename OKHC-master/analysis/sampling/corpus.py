@@ -96,7 +96,6 @@ def prepare_chunk(chunk: pd.DataFrame, args: argparse.Namespace, anchor_year: in
     chunk["time_window_id"] = (
         chunk["time_window_start"].astype(str) + "-" + chunk["time_window_end"].astype(str)
     )
-    chunk["time_window_id"] = chunk["time_window_id"]
     chunk["wordform_id"] = chunk[args.token_col] + " || " + chunk["vowel_seq"]
     return chunk.drop(columns=["time_windows"])
 
