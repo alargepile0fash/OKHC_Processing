@@ -62,7 +62,7 @@ It deliberately does **not** assign analytical time periods. The raw `year` rema
 `03_prepare_time_window_samples.py` is the entry point for the sampling stage. The script itself is intentionally small. Its supporting code lives in:
 
 ```
-analysis/sampling/
+analysis/scripts/sampling_logic/
 ├── config.py       # read and validate settings
 ├── windows.py      # construct historical windows
 ├── corpus.py       # prepare and count corpus word forms
