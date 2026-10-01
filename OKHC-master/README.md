@@ -43,8 +43,11 @@ analysis/config/
 ├── extraction_default.json
 ├── extraction_test.json
 ├── sampling_default.json
-├── sampling_test.json
-└── test_pipeline.json
+└── testing/
+    ├── preprocessing_test.json
+    ├── extraction_test.json
+    ├── sampling_test.json
+    └── test_pipeline.json
 ```
 
 The production configurations control normal input locations, chunking,
@@ -76,7 +79,7 @@ The complete pipeline can be tested with the small fixture using:
 python analysis/scripts/04_run_test_pipeline.py
 ```
 
-The test runner reads `analysis/config/test_pipeline.json`, which selects the
+The test runner reads `analysis/config/testing/test_pipeline.json`, which selects the
 preprocessing, extraction, and sampling test configurations. Generated test
 output stays under `analysis/tests/output/`; the sampling results are placed
 in the named `sampling` run directory beneath it.
@@ -182,25 +185,17 @@ They are independent:
 | 100 | 25 | 100-year windows beginning every 25 years |
 | 50 | 25 | 50-year windows beginning every 25 years |
 
-For example, the repository includes:
+For another sampling design, copy `analysis/config/sampling_default.json`, change the settings you want to test, and give the copy a different `run_name`. For example, a 100-year window with a 25-year step could use:
 
-```
-analysis/config/sampling_100yr_step25.json
-```
-
-Run it with:
-
-```bash
-python analysis/scripts/03_prepare_time_window_samples.py --config analysis/config/sampling_100yr_step25.json
+```json
+"runs_dir": "analysis/data/runs",
+"run_name": "100yr_step25",
+"window_width": 100,
+"window_step": 25
 ```
 
-You can also override an individual setting for a quick test:
+Then run it with the copied configuration file.
 
-```bash
-python analysis/scripts/03_prepare_time_window_samples.py --config analysis/config/sampling_default.json --window-width 100 --window-step 25
-```
-
-The JSON file is the normal place to make experimental changes.
 
 ### Sampling modes
 
