@@ -179,16 +179,30 @@ def build_idu_trie(dictionary_by_idu_text: dict[str, list[dict]]) -> dict:
 
 
 def find_nonoverlapping_longest_idu_matches(text: str, trie: dict) -> list[dict]:
-    """
-    Find longest non-overlapping Idu dictionary matches in NFKC-normalized text.
+    """Find longest non-overlapping Idu matches with original-text offsets.
 
-    This is a dependency-free alternative to Aho-Corasick. It favors longer
-    dictionary entries over their shorter substrings.
+    Dictionary keys are normalized before the trie is built. Matching is
+    therefore performed against an NFKC-normalized view of the text, but each
+    normalized character is mapped back to its original character span so the
+    returned start/end offsets always refer to the original input string.
     """
     if not trie:
         return []
 
-    normalized_text = ud.normalize("NFKC", text or "")
+    original_text = text or ""
+    normalized_parts = []
+    normalized_start = []
+    normalized_end = []
+
+    for original_index, char in enumerate(original_text):
+        normalized = ud.normalize("NFKC", char)
+        if not normalized:
+            continue
+        normalized_parts.append(normalized)
+        normalized_start.extend([original_index] * len(normalized))
+        normalized_end.extend([original_index + 1] * len(normalized))
+
+    normalized_text = "".join(normalized_parts)
     n = len(normalized_text)
     matches = []
 
@@ -203,20 +217,21 @@ def find_nonoverlapping_longest_idu_matches(text: str, trie: dict) -> list[dict]
             j += 1
             if TRIE_TERMINAL in node:
                 best = {
-                    "start": i,
-                    "end": j,
+                    "start": normalized_start[i],
+                    "end": normalized_end[j - 1],
                     "match_text": normalized_text[i:j],
                     "entries": node[TRIE_TERMINAL],
                 }
 
         if best is not None:
             matches.append(best)
-            i = best["end"]
+            original_end = best["end"]
+            while i < n and normalized_end[i] <= original_end:
+                i += 1
         else:
             i += 1
 
     return matches
-
 
 def split_idu_hangul_readings(hangul_text: str) -> list[tuple[str, str]]:
     """
