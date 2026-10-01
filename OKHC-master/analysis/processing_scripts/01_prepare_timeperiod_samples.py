@@ -16,7 +16,7 @@ The script:
 5. Counts how often each word form occurs within each configured period.
 6. Writes diagnostics for all retained configured periods, including sparse edge periods.
 7. Selects high-frequency word forms according to the requested sampling mode.
-   The default mode, cap-preserve-periods, keeps every non-manually-excluded period
+   The default mode, cap-preserve-windows, keeps every non-manually-excluded period
    after --start-year and caps only the maximum number of word forms per period.
    This avoids creating major gaps just because early periods have fewer forms.
 8. Optionally, strict-balanced mode reproduces the older behavior: exclude periods
@@ -64,6 +64,7 @@ import math
 import os
 import re
 import sys
+import json
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -98,7 +99,8 @@ OPTIONAL_METADATA_COLS = [
 ]
 
 # Each period covers this many years. The user requested configured periods.
-PERIOD_SIZE_YEARS = 25
+TIME_WINDOW_WIDTH_YEARS = 25
+TIME_WINDOW_STEP_YEARS = 25
 
 # If START_YEAR is None, the first period boundary is calculated from the earliest
 # observed year. If you want historically cleaner bins such as 1400-1424, 1425-1449,
@@ -122,7 +124,7 @@ MIN_PERIOD_WORDFORMS_FOR_BALANCING = 1_000
 # Default maximum number of highest-frequency word forms to keep per period in
 # cap-preserve-periods mode. Periods with fewer than this many forms are kept in full
 # and flagged as low-N rather than discarded.
-TARGET_WORDFORMS_PER_PERIOD = 1_000
+TARGET_WORDFORMS_PER_WINDOW = 1_000
 
 # Default sampling mode.
 #   cap-preserve-periods: preserve the full time frame after --start-year by keeping
@@ -287,10 +289,16 @@ def parse_args() -> argparse.Namespace:
         help=f"Column containing vowel sequences. Default: {VOWELS_COL}",
     )
     parser.add_argument(
-        "--period-size",
+        "--window-width",
         type=int,
-        default=PERIOD_SIZE_YEARS,
-        help="Number of years per period. Default: 25.",
+        default=TIME_WINDOW_WIDTH_YEARS,
+        help="Width of each analysis window in years. Default: 25.",
+    )
+    parser.add_argument(
+        "--window-step",
+        type=int,
+        default=TIME_WINDOW_STEP_YEARS,
+        help="Distance between successive window starts in years. Set equal to --window-width for non-overlapping periods; use a smaller value for overlapping windows.",
     )
     parser.add_argument(
         "--start-year",
@@ -341,7 +349,7 @@ def parse_args() -> argparse.Namespace:
         default=MAX_WORDFORMS_PER_PERIOD,
         help=(
             "Backward-compatible optional cap on sample size per period. In "
-            "cap-preserve-periods mode, --target-wordforms-per-period is clearer; "
+            "cap-preserve-periods mode, --target-wordforms-per-window is clearer; "
             "if both are supplied, --target-wordforms-per-period takes priority."
         ),
     )
@@ -379,7 +387,7 @@ def parse_args() -> argparse.Namespace:
         "--skip-token-row-output",
         action="store_true",
         help=(
-            "Only write balanced_period_wordforms.csv and summaries. "
+            "Only write sampled_time_window_wordforms.csv and summaries. "
             "This is faster because it skips the second pass that preserves original token rows."
         ),
     )
@@ -447,33 +455,34 @@ def extract_known_vowels(text: str) -> list[str]:
     return re.findall(pattern, text)
 
 
-def choose_period_anchor_from_min_year(
+def choose_window_anchor_from_min_year(
     min_year: int,
-    period_size: int,
+    window_step: int,
     start_year: Optional[int],
 ) -> int:
-    """
-    Decide the first period boundary.
-
-    If start_year is provided, that exact value anchors the bins.
-    Otherwise, the earliest observed year is rounded down to the nearest period boundary.
-    """
+    """Choose the first allowed window start."""
     if start_year is not None:
         return int(start_year)
-    return math.floor(int(min_year) / period_size) * period_size
+    return math.floor(int(min_year) / window_step) * window_step
 
 
-def assign_period_start(year: int, anchor_year: int, period_size: int) -> int:
-    """
-    Assign a year to the start year of its configured period.
-
-    Example with anchor_year=1400 and period_size=25:
-    1400 -> 1400
-    1424 -> 1400
-    1425 -> 1425
-    """
-    return anchor_year + math.floor((year - anchor_year) / period_size) * period_size
-
+def assign_time_windows(
+    year: int,
+    anchor_year: int,
+    window_width: int,
+    window_step: int,
+) -> list[tuple[int, int]]:
+    """Return every configured time window containing a year."""
+    if window_width <= 0 or window_step <= 0:
+        raise ValueError("window width and window step must both be positive")
+    latest_start = anchor_year + math.floor((year - anchor_year) / window_step) * window_step
+    earliest_start = latest_start - window_width + 1
+    first_start = anchor_year + math.ceil((earliest_start - anchor_year) / window_step) * window_step
+    return [
+        (start, start + window_width - 1)
+        for start in range(first_start, latest_start + 1, window_step)
+        if start >= anchor_year
+    ]
 
 def clean_and_annotate_chunk(
     chunk: pd.DataFrame,
@@ -481,7 +490,8 @@ def clean_and_annotate_chunk(
     year_col: str,
     token_col: str,
     vowels_col: str,
-    period_size: int,
+    window_width: int,
+    window_step: int,
     anchor_year: int,
     min_word_vowels: int,
     min_analysis_year: Optional[int] = None,
@@ -530,13 +540,21 @@ def clean_and_annotate_chunk(
 
     chunk["vowel_seq"] = chunk["vowel_seq_list"].apply(lambda seq: " ".join(seq))
 
-    # Assign configured period information.
-    chunk["period_start"] = chunk[year_col].apply(
-        lambda y: assign_period_start(int(y), anchor_year, period_size)
+    # Assign every configured time window containing each token year.
+    chunk["time_windows"] = chunk[year_col].apply(
+        lambda y: assign_time_windows(int(y), anchor_year, window_width, window_step)
     )
-    chunk["period_end"] = chunk["period_start"] + period_size - 1
-    chunk["period_label"] = chunk["period_start"].astype(str) + "-" + chunk["period_end"].astype(str)
-
+    chunk = chunk.explode("time_windows", ignore_index=True)
+    if chunk.empty:
+        return chunk
+    chunk[["time_window_start", "time_window_end"]] = pd.DataFrame(
+        chunk["time_windows"].tolist(), index=chunk.index
+    )
+    chunk["time_window_start"] = chunk["time_window_start"].astype(int)
+    chunk["time_window_end"] = chunk["time_window_end"].astype(int)
+    chunk["time_window_label"] = chunk["time_window_start"].astype(str) + "-" + chunk["time_window_end"].astype(str)
+    chunk["time_window_id"] = chunk["time_window_label"]
+    chunk = chunk.drop(columns=["time_windows"])
     # A word form is token + normalized vowel sequence. This avoids collapsing cases
     # where the same orthographic token appears with different extracted vowels.
     chunk["wordform_id"] = chunk[token_col].astype(str) + " || " + chunk["vowel_seq"]
@@ -581,9 +599,9 @@ def find_min_usable_year(
 def write_variable_descriptions(output_dir: Path) -> None:
     """Write a separate data dictionary so the output CSVs are self-documenting."""
     descriptions = [
-        ("period_start", "First calendar year included in the configured period. If --start-year was supplied, no rows earlier than that year are retained."),
-        ("period_end", "Last calendar year included in the configured period."),
-        ("period_label", "Human-readable label for the configured period, e.g. 1425-1449."),
+        ("time_window_start", "First calendar year included in the configured period. If --start-year was supplied, no rows earlier than that year are retained."),
+        ("time_window_end", "Last calendar year included in the configured period."),
+        ("time_window_label", "Human-readable label for the configured period, e.g. 1425-1449."),
         ("wordform_id", "Unique identifier for a period-specific word form: token plus normalized vowel sequence."),
         ("token", "Orthographic word form from the original corpus."),
         ("vowel_seq", "Normalized vowel sequence, separated by spaces."),
@@ -595,13 +613,13 @@ def write_variable_descriptions(output_dir: Path) -> None:
         ("last_observed_year_in_period", "Latest token year for this word form inside the period."),
         ("frequency_rank_in_period", "Rank after sorting word forms in the period by token_count_in_period descending."),
         ("sampling_mode", "Sampling strategy used by script 01: cap-preserve-periods or strict-balanced."),
-        ("target_wordforms_per_period", "Requested maximum number of high-frequency word forms to keep per period in cap-preserve-periods mode."),
+        ("target_wordforms_per_window", "Requested maximum number of high-frequency word forms to keep per period in cap-preserve-periods mode."),
         ("selected_sample_size_for_period", "Actual number of word forms selected for this specific period. In cap-preserve-periods mode, this may be smaller than the target when the period has fewer available forms."),
-        ("balanced_sample_size_per_period", "Backward-compatible name for selected_sample_size_for_period in the word-form output. In strict-balanced mode this is the same for every included period; in cap-preserve-periods mode it can vary for low-N periods."),
-        ("period_is_low_n_warning", "TRUE if the period has fewer available word forms than --min-period-wordforms. In cap-preserve-periods mode this is a warning only, not an exclusion."),
+        ("sample_size_per_time_window", "Backward-compatible name for selected_sample_size_for_period in the word-form output. In strict-balanced mode this is the same for every included period; in cap-preserve-periods mode it can vary for low-N periods."),
+        ("time_window_is_low_n_warning", "TRUE if the period has fewer available word forms than --min-period-wordforms. In cap-preserve-periods mode this is a warning only, not an exclusion."),
         ("available_wordforms_before_balancing", "Number of candidate word forms available in that period before frequency balancing."),
-        ("period_is_eligible_for_balancing", "TRUE if the period is included in the TP input under the chosen sampling mode."),
-        ("period_exclusion_reason", "Reason a period was excluded from the TP sample, or INCLUDED if it was retained."),
+        ("time_window_is_eligible_for_sampling", "TRUE if the period is included in the TP input under the chosen sampling mode."),
+        ("time_window_exclusion_reason", "Reason a period was excluded from the TP sample, or INCLUDED if it was retained."),
         ("min_period_wordforms_for_balancing", "Threshold supplied by --min-period-wordforms. In cap-preserve-periods mode this is used as a low-N warning threshold; in strict-balanced mode it is an exclusion threshold."),
         ("min_period_tokens_for_balancing", "Threshold supplied by --min-period-tokens."),
         ("max_wordforms_per_period", "Optional cap supplied by --max-wordforms-per-period; blank means no cap."),
@@ -612,7 +630,7 @@ def write_variable_descriptions(output_dir: Path) -> None:
         ("last_selected_year", "Latest observed year among selected word forms in the period."),
     ]
     out = pd.DataFrame(descriptions, columns=["variable", "description"])
-    out.to_csv(output_dir / "01_balanced_sample_variable_descriptions.csv", index=False, encoding="utf-8-sig")
+    out.to_csv(output_dir / "01_time_window_sample_variable_descriptions.csv", index=False, encoding="utf-8-sig")
 
 
 # =============================================================================
@@ -620,8 +638,30 @@ def write_variable_descriptions(output_dir: Path) -> None:
 # =============================================================================
 
 
+def write_sampling_config(output_dir: Path, args: argparse.Namespace, anchor_year: int) -> None:
+    """Write the exact temporal/sampling configuration used for this run."""
+    config = {
+        "window_width_years": int(args.window_width),
+        "window_step_years": int(args.window_step),
+        "window_overlap_years": max(0, int(args.window_width) - int(args.window_step)),
+        "anchor_year": int(anchor_year),
+        "start_year": args.start_year,
+        "min_word_vowels": int(args.min_word_vowels),
+        "target_wordforms_per_window": args.target_wordforms_per_window,
+        "sampling_mode": args.sampling_mode,
+        "min_window_wordforms_warning": int(args.min_period_wordforms),
+        "min_window_tokens": int(args.min_period_tokens),
+        "max_wordforms_per_window": args.max_wordforms_per_period,
+        "excluded_windows": [str(x) for x in args.exclude_periods],
+    }
+    with open(output_dir / "sampling_config.json", "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
 def main() -> None:
     args = parse_args()
+
+    if args.window_width <= 0 or args.window_step <= 0:
+        raise ValueError("--window-width and --window-step must both be positive integers.")
 
     # Resolve default/relative paths relative to the OKHC project root, not relative
     # to whatever working directory PyCharm happens to choose. This is what allows
@@ -658,7 +698,7 @@ def main() -> None:
 
     if args.start_year is None:
         min_year = find_min_usable_year(args.input, args.year_col, args.chunksize)
-        anchor_year = choose_period_anchor_from_min_year(min_year, args.period_size, None)
+        anchor_year = choose_window_anchor_from_min_year(min_year, args.window_step, None)
     else:
         anchor_year = args.start_year
 
@@ -711,9 +751,9 @@ def main() -> None:
 
         if not cleaned.empty:
             group_cols = [
-                "period_start",
-                "period_end",
-                "period_label",
+                "time_window_start",
+                "time_window_end",
+                "time_window_label",
                 "wordform_id",
                 args.token_col,
                 "vowel_seq",
@@ -788,7 +828,7 @@ def main() -> None:
     # Diagnose all periods, then select high-frequency word forms according to the
     # requested sampling mode.
     # -------------------------------------------------------------------------
-    period_counts = (
+    window_counts = (
         wordforms.groupby(["period_start", "period_end", "period_label"], as_index=False)
         .agg(
             available_wordforms_before_balancing=("wordform_id", "nunique"),
@@ -797,11 +837,11 @@ def main() -> None:
         .sort_values("period_start")
     )
 
-    manually_excluded = set(str(p) for p in args.exclude_periods)
+    manually_excluded_windows = set(str(p) for p in args.exclude_periods)
     period_counts["sampling_mode"] = args.sampling_mode
     period_counts["min_period_wordforms_for_balancing"] = args.min_period_wordforms
     period_counts["min_period_tokens_for_balancing"] = args.min_period_tokens
-    period_counts["target_wordforms_per_period"] = args.target_wordforms_per_period
+    period_counts["target_wordforms_per_period"] = args.target_wordforms_per_window
     period_counts["max_wordforms_per_period"] = args.max_wordforms_per_period
     period_counts["period_is_low_n_warning"] = (
         period_counts["available_wordforms_before_balancing"] < args.min_period_wordforms
@@ -848,8 +888,8 @@ def main() -> None:
 
     period_counts["period_exclusion_reason"] = period_counts.apply(explain_period_exclusion, axis=1)
 
-    eligible_periods = period_counts[period_counts["period_is_eligible_for_balancing"]].copy()
-    excluded_periods = period_counts[~period_counts["period_is_eligible_for_balancing"]].copy()
+    eligible_windows = period_counts[period_counts["period_is_eligible_for_balancing"]].copy()
+    excluded_windows = period_counts[~period_counts["period_is_eligible_for_balancing"]].copy()
 
     if eligible_periods.empty:
         raise ValueError(
@@ -958,10 +998,10 @@ def main() -> None:
     # Write the main outputs.
     # -------------------------------------------------------------------------
     balanced_wordforms_path = args.output_dir / "balanced_period_wordforms.csv"
-    balanced_tokens_path = args.output_dir / "balanced_period_original_token_rows.csv"
-    period_summary_path = args.output_dir / "balanced_period_summary.csv"
-    excluded_periods_path = args.output_dir / "excluded_periods_due_to_low_sample.csv"
-    all_period_diagnostics_path = args.output_dir / "all_period_diagnostics_before_balancing.csv"
+    balanced_tokens_path = args.output_dir / "sampled_time_window_original_token_rows.csv"
+    period_summary_path = args.output_dir / "time_window_summary.csv"
+    excluded_periods_path = args.output_dir / "excluded_time_windows_due_to_low_sample.csv"
+    all_period_diagnostics_path = args.output_dir / "all_time_window_diagnostics_before_sampling.csv"
 
     balanced_wordforms.to_csv(balanced_wordforms_path, index=False, encoding="utf-8-sig")
     period_counts.to_csv(all_period_diagnostics_path, index=False, encoding="utf-8-sig")
@@ -1045,6 +1085,7 @@ def main() -> None:
             # Create an empty file with a useful header if no selected token rows were found.
             pd.DataFrame().to_csv(balanced_tokens_path, index=False, encoding="utf-8-sig")
 
+    write_sampling_config(args.output_dir, args, anchor_year)
     write_variable_descriptions(args.output_dir)
 
     print("\nWrote frequency-balanced outputs:")
