@@ -90,7 +90,13 @@ def main() -> None:
     sampling_config = load_json(config["sampling_config"])
 
     extracted_file = REPO_ROOT / extraction_config["output_file"]
-    sampling_output_dir = (\n        REPO_ROOT\n        / sampling_config["runs_dir"]\n        / sampling_config["run_name"]\n    )\n    sampled_file = sampling_output_dir / "sampled_time_window_wordforms.csv"\n\n    extracted = pd.read_csv(extracted_file, encoding="utf-8-sig")
+    sampling_output_dir = (
+        REPO_ROOT
+        / sampling_config["runs_dir"]
+        / sampling_config["run_name"]
+    )
+    sampled_file = sampling_output_dir / "sampled_time_window_wordforms.csv"
+    extracted = pd.read_csv(extracted_file, encoding="utf-8-sig")
     sampled = pd.read_csv(sampled_file, encoding="utf-8-sig")
 
     expected_max = sampling_config["max_word_vowels"]
