@@ -10,53 +10,11 @@ import pandas as pd
 from .windows import windows_for_year
 
 
-KNOWN_VOWELS = [
-    "ㆍ", "ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ",
-    "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ",
-]
-
-
-def extract_vowels(value: object) -> list[str]:
-    """Convert the vowels column into a list of recognized vowel symbols."""
+def parse_vowel_sequence(value: object) -> list[str]:
+    """Read the standardized comma-separated vowel sequence from the extractor."""
     if pd.isna(value):
         return []
-
-    text = str(value).strip()
-    if not text:
-        return []
-
-    for char in "[](){}'\"":
-        text = text.replace(char, " ")
-
-    if any(separator in text for separator in " ,;/|"):
-        pieces = (
-            text.replace(",", " ")
-            .replace(";", " ")
-            .replace("/", " ")
-            .replace("|", " ")
-            .split()
-        )
-        result = []
-        for piece in pieces:
-            result.extend(extract_vowels(piece))
-        return result
-
-    symbols = sorted(KNOWN_VOWELS, key=len, reverse=True)
-    result = []
-    position = 0
-    while position < len(text):
-        match = next((symbol for symbol in symbols if text.startswith(symbol, position)), None)
-        if match is None:
-            position += 1
-        else:
-            result.append(match)
-            position += len(match)
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Corpus preprocessing
-# ---------------------------------------------------------------------------
+    return [vowel for vowel in str(value).split(",") if vowel]
 
 
 def prepare_chunk(chunk: pd.DataFrame, args: argparse.Namespace, anchor_year: int) -> pd.DataFrame:
@@ -74,7 +32,7 @@ def prepare_chunk(chunk: pd.DataFrame, args: argparse.Namespace, anchor_year: in
     chunk[args.token_col] = chunk[args.token_col].astype(str).str.strip()
     chunk = chunk[chunk[args.token_col] != ""]
 
-    chunk["vowel_seq_list"] = chunk[args.vowels_col].apply(extract_vowels)
+    chunk["vowel_seq_list"] = chunk[args.vowels_col].apply(parse_vowel_sequence)
     chunk["num_vowels_normalized"] = chunk["vowel_seq_list"].str.len()
     chunk = chunk[chunk["num_vowels_normalized"] >= args.min_word_vowels]
     if chunk.empty:
