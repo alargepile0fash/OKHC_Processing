@@ -1,6 +1,6 @@
 {
   "input": "analysis/data/hangul_vowel_tokens_diachronic.csv",
-  "output_dir": "analysis/data/timeperiod_samples",
+  "output_dir": "analysis/data/time_window_samples",
   "year_col": "year",
   "token_col": "token",
   "vowels_col": "vowels",
