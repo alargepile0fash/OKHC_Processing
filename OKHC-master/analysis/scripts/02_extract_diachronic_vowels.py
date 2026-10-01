@@ -102,20 +102,43 @@ VOWEL_NORMALIZATION = {
     "ᆞ": "ㆍ", "ㆍ": "ㆍ", "ㆎ": "ㆎ",
 }
 
-CORE_PLUS_RTR = {"ㆍ", "ㅏ", "ㅗ"}
-CORE_MINUS_RTR = {"ㅡ", "ㅓ", "ㅜ"}
-CORE_NEUTRAL = {"ㅣ"}
+CORE_VOWEL_CLASS = {
+    # Classical seven-vowel Middle Korean harmony system:
+    # +RTR/light: ㆍ ㅏ ㅗ
+    # -RTR/dark:  ㅡ ㅓ ㅜ
+    # neutral:    ㅣ
+    "ㆍ": "+RTR",
+    "ㅏ": "+RTR",
+    "ㅗ": "+RTR",
+    "ㅡ": "-RTR",
+    "ㅓ": "-RTR",
+    "ㅜ": "-RTR",
+    "ㅣ": "NEUTRAL",
+}
 
-EXPANDED_PLUS_RTR = {"ㆍ", "ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ"}
-EXPANDED_MINUS_RTR = {"ㅡ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ"}
-EXPANDED_NEUTRAL = {"ㅣ"}
-
-# Historical complex vowels inherit the harmony value of their nucleus.
-EXPANDED_NUCLEUS_CLASS = {
-    "ㅑ": "+RTR", "ㅕ": "-RTR", "ㅛ": "+RTR", "ㅠ": "-RTR",
-    "ㅘ": "+RTR", "ㅝ": "-RTR", "ㅙ": "+RTR", "ㅞ": "-RTR",
-    "ㅐ": "+RTR", "ㅔ": "-RTR", "ㅚ": "+RTR", "ㅟ": "-RTR",
-    "ㅢ": "-RTR", "ㆎ": "+RTR",
+# Operational expanded analysis. Complex/derived vowel symbols inherit the
+# harmony value of their historical nucleus; the glide/offglide itself is not
+# assigned an independent harmony value. These are analytical extensions of
+# the core seven-vowel system, not claims that every symbol below was a member
+# of the Middle Korean seven-vowel inventory.
+EXPANDED_VOWEL_CLASS = {
+    **CORE_VOWEL_CLASS,
+    "ㅐ": "+RTR",
+    "ㅑ": "+RTR",
+    "ㅒ": "+RTR",
+    "ㅘ": "+RTR",
+    "ㅙ": "+RTR",
+    "ㅚ": "+RTR",
+    "ㅛ": "+RTR",
+    "ㆎ": "+RTR",
+    "ㅔ": "-RTR",
+    "ㅕ": "-RTR",
+    "ㅖ": "-RTR",
+    "ㅝ": "-RTR",
+    "ㅞ": "-RTR",
+    "ㅟ": "-RTR",
+    "ㅠ": "-RTR",
+    "ㅢ": "-RTR",
 }
 
 ARAE_A = "ㆍ"
@@ -149,25 +172,9 @@ def extract_vowels(token: str) -> list[str]:
 def vowel_class(vowel: str, inventory: str = "expanded") -> str:
     """Classify one vowel under the selected harmony inventory."""
     if inventory == "core":
-        if vowel in CORE_PLUS_RTR:
-            return "+RTR"
-        if vowel in CORE_MINUS_RTR:
-            return "-RTR"
-        if vowel in CORE_NEUTRAL:
-            return "NEUTRAL"
-        return "OTHER"
-
+        return CORE_VOWEL_CLASS.get(vowel, "OTHER")
     if inventory == "expanded":
-        if vowel in EXPANDED_PLUS_RTR:
-            return "+RTR"
-        if vowel in EXPANDED_MINUS_RTR:
-            return "-RTR"
-        if vowel in EXPANDED_NEUTRAL:
-            return "NEUTRAL"
-        if vowel in EXPANDED_NUCLEUS_CLASS:
-            return EXPANDED_NUCLEUS_CLASS[vowel]
-        return "OTHER"
-
+        return EXPANDED_VOWEL_CLASS.get(vowel, "OTHER")
     raise ValueError(f"Unknown harmony inventory: {inventory}")
 
 
@@ -395,6 +402,14 @@ def build_vowel_row(
 # ============================================================
 
 def process_corpus(config: dict) -> None:
+    """Extract original Hangul tokens and optional Idu dictionary readings.
+
+    When exclude_idu_derived_wordforms is enabled, dictionary-derived Hangul
+    reading candidates are omitted from the analytical CSV. This does not
+    remove independently written Hangul tokens from the same document: the
+    dictionary correspondence does not establish that an ordinary Hangul
+    token is the realization of a particular Idu match.
+    """
     input_dir = config["input_dir"]
     output_file = config["output_file"]
     output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -449,7 +464,7 @@ def process_corpus(config: dict) -> None:
     bad_json_lines = 0
     idu_matches_seen = 0
     idu_matches_with_usable_vowels = 0
-    idu_wordforms_excluded = 0
+    idu_reading_candidates_excluded = 0
 
     with output_file.open("w", encoding="utf-8-sig", newline="") as outfile:
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
@@ -518,7 +533,7 @@ def process_corpus(config: dict) -> None:
                                     idu_matches_with_usable_vowels += 1
 
                                     if config["exclude_idu_derived_wordforms"]:
-                                        idu_wordforms_excluded += 1
+                                        idu_reading_candidates_excluded += 1
                                         continue
 
                                     idu_metadata = {
@@ -569,7 +584,7 @@ def process_corpus(config: dict) -> None:
     print(f"Idu correspondence rows written: {idu_correspondence_rows_written:,}")
     print(f"Idu dictionary matches seen: {idu_matches_seen:,}")
     print(f"Idu matches with usable vowel readings: {idu_matches_with_usable_vowels:,}")
-    print(f"Idu-derived wordforms excluded: {idu_wordforms_excluded:,}")
+    print(f"Idu dictionary reading candidates excluded: {idu_reading_candidates_excluded:,}")
     print(f"Bad JSON lines skipped: {bad_json_lines:,}")
     print(f"Saved output to: {output_file}")
 
