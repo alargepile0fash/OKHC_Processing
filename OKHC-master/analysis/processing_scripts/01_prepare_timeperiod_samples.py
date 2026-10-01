@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-01_prepare_timeperiod_samples.py
+01_prepare_timetime window_samples.py
 
 Purpose
 -------
@@ -11,17 +11,17 @@ The script:
 1. Reads the original/master token-level CSV in chunks, so very large corpus files
    do not have to be loaded into memory all at once.
 2. If --start-year is supplied, drops rows whose year is earlier than that start year.
-3. Assigns every remaining token to a configured period based on its year.
-4. Collapses token occurrences into period-specific word-form candidates.
-5. Counts how often each word form occurs within each configured period.
-6. Writes diagnostics for all retained configured periods, including sparse edge periods.
+3. Assigns every remaining token to a configured time window based on its year.
+4. Collapses token occurrences into time window-specific word-form candidates.
+5. Counts how often each word form occurs within each configured time window.
+6. Writes diagnostics for all retained configured time windows, including sparse edge time windows.
 7. Selects high-frequency word forms according to the requested sampling mode.
-   The default mode, cap-preserve-windows, keeps every non-manually-excluded period
-   after --start-year and caps only the maximum number of word forms per period.
-   This avoids creating major gaps just because early periods have fewer forms.
-8. Optionally, strict-balanced mode reproduces the older behavior: exclude periods
-   below --min-period-wordforms and balance all remaining periods to the smallest
-   eligible period.
+   The default mode, cap-preserve-windows, keeps every non-manually-excluded time window
+   after --start-year and caps only the maximum number of word forms per time window.
+   This avoids creating major gaps just because early time windows have fewer forms.
+8. Optionally, strict-balanced mode reproduces the older behavior: exclude time windows
+   below --min-window-wordforms and balance all remaining time windows to the smallest
+   eligible time window.
 9. Writes a filtered word-form CSV for later phonological analyses; this script does not construct UR/SR pairs.
 10. Preserves token-source provenance so Idu-derived observations can be audited or excluded in sensitivity analyses.
 11. Optionally writes the original token rows represented by those selected word forms.
@@ -32,23 +32,23 @@ Frequency filtering is separated from phonological analysis so that:
 - later TP/D2L analyses always run on the same controlled sample;
 - alternative phonological conditions do not accidentally change the frequency sample;
 - the sample-balancing step can be inspected before any theoretical claims are made;
-- sparse edge periods can be preserved in diagnostics without forcing all other
-  periods down to the sparse period's sample size.
+- sparse edge time windows can be preserved in diagnostics without forcing all other
+  time windows down to the sparse time window's sample size.
 
 Default assumptions
 -------------------
-- Candidate selection is by WORD FORM within each configured period.
-- "Highest-frequency" means the word forms with the largest token counts in that period.
+- Candidate selection is by WORD FORM within each configured time window.
+- "Highest-frequency" means the word forms with the largest token counts in that time window.
 - The script ignores origin/stratum fields entirely.
 - The script does not sample isolated fixed-interval snapshots. It bins all tokens into contiguous
-  configured periods and uses all retained tokens inside each period before balancing.
-- If --start-year is provided, it is both the first period boundary and the lower
-  year cutoff. Years before that boundary are ignored, so pre-start edge periods
+  configured time windows and uses all retained tokens inside each time window before balancing.
+- If --start-year is provided, it is both the first time window boundary and the lower
+  year cutoff. Years before that boundary are ignored, so pre-start edge time windows
   cannot determine the balanced sample size.
 
 Expected important input columns
 --------------------------------
-year    : token date/year. Used to assign configured periods.
+year    : token date/year. Used to assign configured time windows.
 token   : orthographic word form. Used as the word-form label.
 vowels       : vowel sequence for that token. Raw vowel identities are retained.
 token_source : provenance label for the extracted observation; retained for sensitivity analysis.
@@ -76,7 +76,7 @@ import pandas as pd
 # =============================================================================
 
 DEFAULT_INPUT_CSV = Path("analysis/data/hangul_vowel_tokens_diachronic.csv")
-DEFAULT_OUTPUT_DIR = Path("analysis/data/timeperiod_samples")
+DEFAULT_OUTPUT_DIR = Path("analysis/data/timetime window_samples")
 PROJECT_ROOT_ENV_VAR = "OKHC_ROOT"
 
 # Input column names. These match the columns shown in your current processing output.
@@ -98,11 +98,11 @@ OPTIONAL_METADATA_COLS = [
     "num_vowels",
 ]
 
-# Each period covers this many years. The user requested configured periods.
+# Each time window covers this many years. The user requested configured time windows.
 TIME_WINDOW_WIDTH_YEARS = 25
 TIME_WINDOW_STEP_YEARS = 25
 
-# If START_YEAR is None, the first period boundary is calculated from the earliest
+# If START_YEAR is None, the first time window boundary is calculated from the earliest
 # observed year. If you want historically cleaner bins such as 1400-1424, 1425-1449,
 # set START_YEAR = 1400 or pass --start-year 1400.
 START_YEAR: Optional[int] = None
@@ -115,32 +115,32 @@ MIN_WORD_VOWELS = 2
 # more memory. Smaller values show progress more frequently and are safer on laptops.
 CHUNKSIZE = 250_000
 
-# Minimum number of unique word forms a configured period must have before it is used
+# Minimum number of unique word forms a configured time window must have before it is used
 # for the balanced TP sample in strict-balanced mode.
-# In the default cap-preserve-periods mode, this is reported as a warning threshold
-# rather than used to discard periods.
-MIN_PERIOD_WORDFORMS_FOR_BALANCING = 1_000
+# In the default cap-preserve-windows mode, this is reported as a warning threshold
+# rather than used to discard time windows.
+MIN_WINDOW_WORDFORMS_FOR_WARNING = 1_000
 
-# Default maximum number of highest-frequency word forms to keep per period in
-# cap-preserve-periods mode. Periods with fewer than this many forms are kept in full
+# Default maximum number of highest-frequency word forms to keep per time window in
+# cap-preserve-windows mode. Periods with fewer than this many forms are kept in full
 # and flagged as low-N rather than discarded.
 TARGET_WORDFORMS_PER_WINDOW = 1_000
 
 # Default sampling mode.
-#   cap-preserve-periods: preserve the full time frame after --start-year by keeping
-#       up to TARGET_WORDFORMS_PER_PERIOD per period; low-N periods stay included.
-#   strict-balanced: exclude periods below thresholds and force all included periods
+#   cap-preserve-windows: preserve the full time frame after --start-year by keeping
+#       up to TARGET_WORDFORMS_PER_PERIOD per time window; low-N time windows stay included.
+#   strict-balanced: exclude time windows below thresholds and force all included time windows
 #       to exactly the same size.
-SAMPLING_MODE = "cap-preserve-periods"
+SAMPLING_MODE = "cap-preserve-windows"
 
-# Optional minimum represented token count for an eligible period. Leave at 0 unless
-# you also want to exclude periods with enough unique word forms but very few tokens.
-MIN_PERIOD_TOKENS_FOR_BALANCING = 0
+# Optional minimum represented token count for an eligible time window. Leave at 0 unless
+# you also want to exclude time windows with enough unique word forms but very few tokens.
+MIN_WINDOW_TOKENS = 0
 
 # Optional cap on the balanced sample size. None means: use the smallest eligible
-# period's full available word-form count. Set this to e.g. 50_000 if the smallest
-# eligible period is still too large for practical TP testing.
-MAX_WORDFORMS_PER_PERIOD: Optional[int] = None
+# time window's full available word-form count. Set this to e.g. 50_000 if the smallest
+# eligible time window is still too large for practical TP testing.
+MAX_WORDFORMS_PER_WINDOW: Optional[int] = None
 
 # Vowel symbols that the parser recognizes when the vowels column is not already
 # separated by spaces or commas. Add symbols here if your corpus uses more.
@@ -250,7 +250,7 @@ def resolve_project_path(path: Path, project_root: Path) -> Path:
 def parse_args() -> argparse.Namespace:
     """Read command-line options while keeping sensible defaults for your project."""
     parser = argparse.ArgumentParser(
-        description="Build a period-based, frequency-balanced word-form sample for TP testing."
+        description="Build a time window-based, frequency-balanced word-form sample for TP testing."
     )
     parser.add_argument(
         "--project-root",
@@ -298,17 +298,17 @@ def parse_args() -> argparse.Namespace:
         "--window-step",
         type=int,
         default=TIME_WINDOW_STEP_YEARS,
-        help="Distance between successive window starts in years. Set equal to --window-width for non-overlapping periods; use a smaller value for overlapping windows.",
+        help="Distance between successive window starts in years. Set equal to --window-width for non-overlapping time windows; use a smaller value for overlapping windows.",
     )
     parser.add_argument(
         "--start-year",
         type=int,
         default=START_YEAR,
         help=(
-            "First period boundary AND lower analysis-year cutoff. For example, "
-            "--start-year 1400 creates periods 1400-1424, 1425-1449, etc., "
+            "First time window boundary AND lower analysis-year cutoff. For example, "
+            "--start-year 1400 creates time windows 1400-1424, 1425-1449, etc., "
             "and drops rows dated before 1400. If omitted, the earliest observed "
-            "year is floored to the nearest period-size boundary and no earlier "
+            "year is floored to the nearest time window-size boundary and no earlier "
             "rows are filtered out."
         ),
     )
@@ -325,62 +325,62 @@ def parse_args() -> argparse.Namespace:
         help="Rows to read per chunk from the master corpus. Default: 250000.",
     )
     parser.add_argument(
-        "--min-period-wordforms",
+        "--min-window-wordforms",
         type=int,
-        default=MIN_PERIOD_WORDFORMS_FOR_BALANCING,
+        default=MIN_WINDOW_WORDFORMS_FOR_WARNING,
         help=(
-            "Minimum number of unique word forms a period must have to be included "
-            "in the balanced TP sample. Sparse periods are still reported in diagnostics. "
-            "Default: 1000. Use 0 only if you truly want every period included."
+            "Minimum number of unique word forms a time window must have to be included "
+            "in the balanced TP sample. Sparse time windows are still reported in diagnostics. "
+            "Default: 1000. Use 0 only if you truly want every time window included."
         ),
     )
     parser.add_argument(
-        "--min-period-tokens",
+        "--min-window-tokens",
         type=int,
-        default=MIN_PERIOD_TOKENS_FOR_BALANCING,
+        default=MIN_WINDOW_TOKENS,
         help=(
-            "Minimum total token count represented by usable word forms for a period "
+            "Minimum total token count represented by usable word forms for a time window "
             "to be included in the balanced TP sample. Default: 0."
         ),
     )
     parser.add_argument(
-        "--max-wordforms-per-period",
+        "--max-wordforms-per-window",
         type=int,
-        default=MAX_WORDFORMS_PER_PERIOD,
+        default=MAX_WORDFORMS_PER_WINDOW,
         help=(
-            "Backward-compatible optional cap on sample size per period. In "
-            "cap-preserve-periods mode, --target-wordforms-per-window is clearer; "
-            "if both are supplied, --target-wordforms-per-period takes priority."
+            "Backward-compatible optional cap on sample size per time window. In "
+            "cap-preserve-windows mode, --target-wordforms-per-window is clearer; "
+            "if both are supplied, --target-wordforms-per-window takes priority."
         ),
     )
     parser.add_argument(
         "--sampling-mode",
-        choices=["cap-preserve-periods", "strict-balanced"],
+        choices=["cap-preserve-windows", "strict-balanced"],
         default=SAMPLING_MODE,
         help=(
-            "Sampling strategy. cap-preserve-periods keeps every non-manually-excluded "
-            "period after --start-year and caps the maximum per-period sample size. "
-            "strict-balanced excludes low-N periods and balances all remaining periods "
-            "to the smallest eligible period. Default: cap-preserve-periods."
+            "Sampling strategy. cap-preserve-windows keeps every non-manually-excluded "
+            "time window after --start-year and caps the maximum per-time window sample size. "
+            "strict-balanced excludes low-N time windows and balances all remaining time windows "
+            "to the smallest eligible time window. Default: cap-preserve-windows."
         ),
     )
     parser.add_argument(
-        "--target-wordforms-per-period",
+        "--target-wordforms-per-window",
         type=int,
         default=TARGET_WORDFORMS_PER_PERIOD,
         help=(
-            "Maximum number of highest-frequency word forms to keep per period in "
-            "cap-preserve-periods mode. Periods with fewer forms are kept in full and "
+            "Maximum number of highest-frequency word forms to keep per time window in "
+            "cap-preserve-windows mode. Periods with fewer forms are kept in full and "
             "flagged as low-N rather than discarded. Default: 1000."
         ),
     )
     parser.add_argument(
-        "--exclude-periods",
+        "--exclude-windows",
         nargs="*",
         default=[],
         help=(
-            "Optional explicit period labels to exclude from the balanced TP sample, "
-            "e.g. --exclude-periods 1375-1399 1900-1924. They remain in diagnostics."
+            "Optional explicit time window labels to exclude from the balanced TP sample, "
+            "e.g. --exclude-windows 1375-1399 1900-1924. They remain in diagnostics."
         ),
     )
     parser.add_argument(
@@ -505,7 +505,7 @@ def clean_and_annotate_chunk(
     chunk = chunk.copy()
 
     # Coerce years to numeric values. Rows with unusable dates cannot be assigned to
-    # a period, so they are dropped.
+    # a time window, so they are dropped.
     chunk[year_col] = pd.to_numeric(chunk[year_col], errors="coerce")
     chunk = chunk.dropna(subset=[year_col, token_col, vowels_col])
 
@@ -515,8 +515,8 @@ def clean_and_annotate_chunk(
     chunk[year_col] = chunk[year_col].astype(int)
 
     # Important: when --start-year is supplied, it should not merely anchor the
-    # period labels. It should also act as the lower bound of the analysis window.
-    # Otherwise, a small pre-start edge period such as 1375-1399 could be retained
+    # time window labels. It should also act as the lower bound of the analysis window.
+    # Otherwise, a small pre-start edge time window such as 1375-1399 could be retained
     # and accidentally determine the balanced sample size.
     if min_analysis_year is not None:
         chunk = chunk[chunk[year_col] >= int(min_analysis_year)]
@@ -570,7 +570,7 @@ def find_min_usable_year(
     """
     First pass used only when --start-year is omitted.
 
-    Pandas cannot assign period bins until it knows the anchor year. If the user does
+    Pandas cannot assign time window bins until it knows the anchor year. If the user does
     not provide that anchor, this function streams through the year column only and
     finds the earliest usable year without loading the whole corpus.
     """
@@ -599,35 +599,35 @@ def find_min_usable_year(
 def write_variable_descriptions(output_dir: Path) -> None:
     """Write a separate data dictionary so the output CSVs are self-documenting."""
     descriptions = [
-        ("time_window_start", "First calendar year included in the configured period. If --start-year was supplied, no rows earlier than that year are retained."),
-        ("time_window_end", "Last calendar year included in the configured period."),
-        ("time_window_label", "Human-readable label for the configured period, e.g. 1425-1449."),
-        ("wordform_id", "Unique identifier for a period-specific word form: token plus normalized vowel sequence."),
+        ("time_window_start", "First calendar year included in the configured time window. If --start-year was supplied, no rows earlier than that year are retained."),
+        ("time_window_end", "Last calendar year included in the configured time window."),
+        ("time_window_label", "Human-readable label for the configured time window, e.g. 1425-1449."),
+        ("wordform_id", "Unique identifier for a time window-specific word form: token plus normalized vowel sequence."),
         ("token", "Orthographic word form from the original corpus."),
         ("vowel_seq", "Normalized vowel sequence, separated by spaces."),
         ("num_vowels_normalized", "Number of vowel symbols in vowel_seq after normalization."),
-        ("token_sources_present", "Pipe-separated provenance labels represented by the selected word form in this period. Provenance is metadata and does not change the sampling unit."),
+        ("token_sources_present", "Pipe-separated provenance labels represented by the selected word form in this time window. Provenance is metadata and does not change the sampling unit."),
         ("contains_idu_derived_observation", "TRUE if this word form has at least one Idu-dictionary-derived observation. Use this for source-sensitivity analyses."),
-        ("token_count_in_period", "Number of token occurrences of this word form in this configured period."),
-        ("first_observed_year_in_period", "Earliest token year for this word form inside the period."),
-        ("last_observed_year_in_period", "Latest token year for this word form inside the period."),
-        ("frequency_rank_in_period", "Rank after sorting word forms in the period by token_count_in_period descending."),
-        ("sampling_mode", "Sampling strategy used by script 01: cap-preserve-periods or strict-balanced."),
-        ("target_wordforms_per_window", "Requested maximum number of high-frequency word forms to keep per period in cap-preserve-periods mode."),
-        ("selected_sample_size_for_period", "Actual number of word forms selected for this specific period. In cap-preserve-periods mode, this may be smaller than the target when the period has fewer available forms."),
-        ("sample_size_per_time_window", "Backward-compatible name for selected_sample_size_for_period in the word-form output. In strict-balanced mode this is the same for every included period; in cap-preserve-periods mode it can vary for low-N periods."),
-        ("time_window_is_low_n_warning", "TRUE if the period has fewer available word forms than --min-period-wordforms. In cap-preserve-periods mode this is a warning only, not an exclusion."),
-        ("available_wordforms_before_balancing", "Number of candidate word forms available in that period before frequency balancing."),
-        ("time_window_is_eligible_for_sampling", "TRUE if the period is included in the TP input under the chosen sampling mode."),
-        ("time_window_exclusion_reason", "Reason a period was excluded from the TP sample, or INCLUDED if it was retained."),
-        ("min_period_wordforms_for_balancing", "Threshold supplied by --min-period-wordforms. In cap-preserve-periods mode this is used as a low-N warning threshold; in strict-balanced mode it is an exclusion threshold."),
-        ("min_period_tokens_for_balancing", "Threshold supplied by --min-period-tokens."),
-        ("max_wordforms_per_period", "Optional cap supplied by --max-wordforms-per-period; blank means no cap."),
-        ("selected_wordforms_after_balancing", "Number of word forms retained after balancing; should equal balanced_sample_size_per_period."),
+        ("token_count_in_window", "Number of token occurrences of this word form in this configured time window."),
+        ("first_observed_year_in_window", "Earliest token year for this word form inside the time window."),
+        ("last_observed_year_in_window", "Latest token year for this word form inside the time window."),
+        ("frequency_rank_in_window", "Rank after sorting word forms in the time window by token_count_in_window descending."),
+        ("sampling_mode", "Sampling strategy used by script 01: cap-preserve-windows or strict-balanced."),
+        ("target_wordforms_per_window", "Requested maximum number of high-frequency word forms to keep per time window in cap-preserve-windows mode."),
+        ("selected_sample_size_for_window", "Actual number of word forms selected for this specific time window. In cap-preserve-windows mode, this may be smaller than the target when the time window has fewer available forms."),
+        ("sample_size_per_time_window", "Backward-compatible name for selected_sample_size_for_window in the word-form output. In strict-balanced mode this is the same for every included time window; in cap-preserve-windows mode it can vary for low-N time windows."),
+        ("time_window_is_low_n_warning", "TRUE if the time window has fewer available word forms than --min-window-wordforms. In cap-preserve-windows mode this is a warning only, not an exclusion."),
+        ("available_wordforms_before_balancing", "Number of candidate word forms available in that time window before frequency balancing."),
+        ("time_window_is_eligible_for_sampling", "TRUE if the time window is included in the TP input under the chosen sampling mode."),
+        ("time_window_exclusion_reason", "Reason a time window was excluded from the TP sample, or INCLUDED if it was retained."),
+        ("min_window_wordforms_for_warning", "Threshold supplied by --min-window-wordforms. In cap-preserve-windows mode this is used as a low-N warning threshold; in strict-balanced mode it is an exclusion threshold."),
+        ("min_window_tokens", "Threshold supplied by --min-window-tokens."),
+        ("max_wordforms_per_window", "Optional cap supplied by --max-wordforms-per-window; blank means no cap."),
+        ("selected_wordforms_after_balancing", "Number of word forms retained after balancing; should equal balanced_sample_size_per_time window."),
         ("total_token_count_represented_before_balancing", "Total corpus token count represented by all usable word forms before balancing."),
         ("tokens_in_selected_wordforms", "Original token occurrences represented by the selected high-frequency word forms."),
-        ("first_selected_year", "Earliest observed year among selected word forms in the period."),
-        ("last_selected_year", "Latest observed year among selected word forms in the period."),
+        ("first_selected_year", "Earliest observed year among selected word forms in the time window."),
+        ("last_selected_year", "Latest observed year among selected word forms in the time window."),
     ]
     out = pd.DataFrame(descriptions, columns=["variable", "description"])
     out.to_csv(output_dir / "01_time_window_sample_variable_descriptions.csv", index=False, encoding="utf-8-sig")
@@ -649,10 +649,10 @@ def write_sampling_config(output_dir: Path, args: argparse.Namespace, anchor_yea
         "min_word_vowels": int(args.min_word_vowels),
         "target_wordforms_per_window": args.target_wordforms_per_window,
         "sampling_mode": args.sampling_mode,
-        "min_window_wordforms_warning": int(args.min_period_wordforms),
-        "min_window_tokens": int(args.min_period_tokens),
-        "max_wordforms_per_window": args.max_wordforms_per_period,
-        "excluded_windows": [str(x) for x in args.exclude_periods],
+        "min_window_wordforms_warning": int(args.min_window_wordforms),
+        "min_window_tokens": int(args.min_window_tokens),
+        "max_wordforms_per_window": args.max_wordforms_per_window,
+        "excluded_windows": [str(x) for x in args.exclude_windows],
     }
     with open(output_dir / "sampling_config.json", "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
@@ -702,13 +702,13 @@ def main() -> None:
     else:
         anchor_year = args.start_year
 
-    print(f"Using period anchor year: {anchor_year}")
+    print(f"Using time window anchor year: {anchor_year}")
     analysis_start_year = args.start_year
     if analysis_start_year is not None:
         print(f"Filtering out rows earlier than start year: {analysis_start_year}")
     else:
         print("No explicit start-year cutoff was supplied; all usable years will be retained.")
-    print("Counting period-specific word forms in chunks...")
+    print("Counting time window-specific word forms in chunks...")
 
     # For the counting pass, read only the columns needed to build the balanced word-form sample.
     count_usecols = [args.year_col, args.token_col, args.vowels_col, "token_source"]
@@ -742,7 +742,7 @@ def main() -> None:
             year_col=args.year_col,
             token_col=args.token_col,
             vowels_col=args.vowels_col,
-            period_size=args.period_size,
+            time window_size=args.time window_size,
             anchor_year=anchor_year,
             min_word_vowels=args.min_word_vowels,
             min_analysis_year=analysis_start_year,
@@ -761,9 +761,9 @@ def main() -> None:
             grouped = (
                 cleaned.groupby(group_cols, dropna=False)
                 .agg(
-                    token_count_in_period=("wordform_id", "size"),
-                    first_observed_year_in_period=(args.year_col, "min"),
-                    last_observed_year_in_period=(args.year_col, "max"),
+                    token_count_in_window=("wordform_id", "size"),
+                    first_observed_year_in_window=(args.year_col, "min"),
+                    last_observed_year_in_window=(args.year_col, "max"),
                     num_vowels_normalized=("num_vowels_normalized", "first"),
                     token_sources_present=("token_source", lambda s: "|".join(sorted(set(s.astype(str))))),
                 )
@@ -803,9 +803,9 @@ def main() -> None:
     wordforms = (
         wordforms.groupby(combined_group_cols, dropna=False)
         .agg(
-            token_count_in_period=("token_count_in_period", "sum"),
-            first_observed_year_in_period=("first_observed_year_in_period", "min"),
-            last_observed_year_in_period=("last_observed_year_in_period", "max"),
+            token_count_in_window=("token_count_in_window", "sum"),
+            first_observed_year_in_window=("first_observed_year_in_window", "min"),
+            last_observed_year_in_window=("last_observed_year_in_window", "max"),
             num_vowels_normalized=("num_vowels_normalized", "first"),
             token_sources_present=("token_sources_present", merge_source_labels),
         )
@@ -822,176 +822,176 @@ def main() -> None:
     if analysis_start_year is not None:
         print(f"Input rows dated before start year and ignored: {total_rows_before_start_year:,}")
     print(f"Usable token rows after cleaning: {total_rows_after_cleaning:,}")
-    print(f"Unique period-specific word forms before balancing: {len(wordforms):,}")
+    print(f"Unique time window-specific word forms before balancing: {len(wordforms):,}")
 
     # -------------------------------------------------------------------------
-    # Diagnose all periods, then select high-frequency word forms according to the
+    # Diagnose all time windows, then select high-frequency word forms according to the
     # requested sampling mode.
     # -------------------------------------------------------------------------
     window_counts = (
         wordforms.groupby(["time_window_start", "time_window_end", "time_window_label"], as_index=False)
         .agg(
             available_wordforms_before_balancing=("wordform_id", "nunique"),
-            total_token_count_represented_before_balancing=("token_count_in_period", "sum"),
+            total_token_count_represented_before_balancing=("token_count_in_window", "sum"),
         )
         .sort_values("time_window_start")
     )
 
-    manually_excluded_windows = set(str(p) for p in args.exclude_periods)
+    manually_excluded_windows_windows = set(str(p) for p in args.exclude_windows)
     window_counts["sampling_mode"] = args.sampling_mode
-    window_counts["min_period_wordforms_for_balancing"] = args.min_period_wordforms
-    window_counts["min_period_tokens_for_balancing"] = args.min_period_tokens
+    window_counts["min_window_wordforms_for_warning"] = args.min_window_wordforms
+    window_counts["min_window_tokens"] = args.min_window_tokens
     window_counts["target_wordforms_per_window"] = args.target_wordforms_per_window
-    window_counts["max_wordforms_per_period"] = args.max_wordforms_per_period
+    window_counts["max_wordforms_per_window"] = args.max_wordforms_per_window
     window_counts["time_window_is_low_n_warning"] = (
-        window_counts["available_wordforms_before_balancing"] < args.min_period_wordforms
+        window_counts["available_wordforms_before_balancing"] < args.min_window_wordforms
     )
 
     if args.sampling_mode == "strict-balanced":
-        # Older behavior: periods below thresholds are removed from the TP input,
-        # then every remaining period is forced to the same sample size.
-        window_counts["time_window_is_eligible_for_balancing"] = (
-            (window_counts["available_wordforms_before_balancing"] >= args.min_period_wordforms)
-            & (window_counts["total_token_count_represented_before_balancing"] >= args.min_period_tokens)
-            & (~window_counts["time_window_label"].astype(str).isin(manually_excluded))
+        # Older behavior: time windows below thresholds are removed from the TP input,
+        # then every remaining time window is forced to the same sample size.
+        window_counts["time_window_is_eligible_for_sampling"] = (
+            (window_counts["available_wordforms_before_balancing"] >= args.min_window_wordforms)
+            & (window_counts["total_token_count_represented_before_balancing"] >= args.min_window_tokens)
+            & (~window_counts["time_window_label"].astype(str).isin(manually_excluded_windows))
         )
     else:
-        # New default behavior: preserve the time frame. Low-N periods are flagged
-        # but not discarded, because discarding all pre-1667 periods would create
+        # New default behavior: preserve the time frame. Low-N time windows are flagged
+        # but not discarded, because discarding all pre-1667 time windows would create
         # exactly the kind of historical gap this analysis is trying to avoid.
-        window_counts["time_window_is_eligible_for_balancing"] = (
+        window_counts["time_window_is_eligible_for_sampling"] = (
             (window_counts["available_wordforms_before_balancing"] > 0)
-            & (window_counts["total_token_count_represented_before_balancing"] >= args.min_period_tokens)
-            & (~window_counts["time_window_label"].astype(str).isin(manually_excluded))
+            & (window_counts["total_token_count_represented_before_balancing"] >= args.min_window_tokens)
+            & (~window_counts["time_window_label"].astype(str).isin(manually_excluded_windows))
         )
 
-    def explain_period_exclusion(row: pd.Series) -> str:
-        """Give a readable reason for each period's inclusion/exclusion status."""
-        if str(row["time_window_label"]) in manually_excluded:
-            return "EXCLUDED: manually listed in --exclude-periods"
-        if row["total_token_count_represented_before_balancing"] < args.min_period_tokens:
+    def explain_time window_exclusion(row: pd.Series) -> str:
+        """Give a readable reason for each time window's inclusion/exclusion status."""
+        if str(row["time_window_label"]) in manually_excluded_windows:
+            return "EXCLUDED: manually listed in --exclude-windows"
+        if row["total_token_count_represented_before_balancing"] < args.min_window_tokens:
             return (
-                "EXCLUDED: represented token count below --min-period-tokens "
-                f"({row['total_token_count_represented_before_balancing']:,} < {args.min_period_tokens:,})"
+                "EXCLUDED: represented token count below --min-window-tokens "
+                f"({row['total_token_count_represented_before_balancing']:,} < {args.min_window_tokens:,})"
             )
-        if args.sampling_mode == "strict-balanced" and row["available_wordforms_before_balancing"] < args.min_period_wordforms:
+        if args.sampling_mode == "strict-balanced" and row["available_wordforms_before_balancing"] < args.min_window_wordforms:
             return (
-                "EXCLUDED: available word forms below --min-period-wordforms "
-                f"({row['available_wordforms_before_balancing']:,} < {args.min_period_wordforms:,})"
+                "EXCLUDED: available word forms below --min-window-wordforms "
+                f"({row['available_wordforms_before_balancing']:,} < {args.min_window_wordforms:,})"
             )
-        if args.sampling_mode == "cap-preserve-periods" and row["available_wordforms_before_balancing"] < args.min_period_wordforms:
+        if args.sampling_mode == "cap-preserve-windows" and row["available_wordforms_before_balancing"] < args.min_window_wordforms:
             return (
-                "INCLUDED WITH LOW-N WARNING: available word forms below --min-period-wordforms "
-                f"({row['available_wordforms_before_balancing']:,} < {args.min_period_wordforms:,})"
+                "INCLUDED WITH LOW-N WARNING: available word forms below --min-window-wordforms "
+                f"({row['available_wordforms_before_balancing']:,} < {args.min_window_wordforms:,})"
             )
         return "INCLUDED"
 
-    window_counts["time_window_exclusion_reason"] = window_counts.apply(explain_period_exclusion, axis=1)
+    window_counts["time_window_exclusion_reason"] = window_counts.apply(explain_time window_exclusion, axis=1)
 
-    eligible_windows = window_counts[window_counts["time_window_is_eligible_for_balancing"]].copy()
-    excluded_windows = window_counts[~window_counts["time_window_is_eligible_for_balancing"]].copy()
+    eligible_windows = window_counts[window_counts["time_window_is_eligible_for_sampling"]].copy()
+    excluded_windows = window_counts[~window_counts["time_window_is_eligible_for_sampling"]].copy()
 
-    if eligible_periods.empty:
+    if eligible_windows.empty:
         raise ValueError(
-            "No periods are eligible for TP sampling. Lower --min-period-tokens "
-            "or remove --exclude-periods."
+            "No time windows are eligible for TP sampling. Lower --min-window-tokens "
+            "or remove --exclude-windows."
         )
 
     if args.sampling_mode == "strict-balanced":
-        smallest_eligible_n = int(eligible_periods["available_wordforms_before_balancing"].min())
+        smallest_eligible_n = int(eligible_windows["available_wordforms_before_balancing"].min())
         selected_n = smallest_eligible_n
-        if args.max_wordforms_per_period is not None:
-            if args.max_wordforms_per_period <= 0:
-                raise ValueError("--max-wordforms-per-period must be positive if provided.")
-            selected_n = min(selected_n, int(args.max_wordforms_per_period))
+        if args.max_wordforms_per_window is not None:
+            if args.max_wordforms_per_window <= 0:
+                raise ValueError("--max-wordforms-per-window must be positive if provided.")
+            selected_n = min(selected_n, int(args.max_wordforms_per_window))
         if selected_n <= 0:
             raise ValueError("Balanced sample size is zero; check eligibility thresholds.")
 
-        window_counts["selected_sample_size_for_period"] = window_counts.apply(
-            lambda row: selected_n if row["time_window_is_eligible_for_balancing"] else 0,
+        window_counts["selected_sample_size_for_window"] = window_counts.apply(
+            lambda row: selected_n if row["time_window_is_eligible_for_sampling"] else 0,
             axis=1,
         )
         print(f"Sampling mode: strict-balanced")
-        print(f"Smallest ELIGIBLE period sample: {smallest_eligible_n:,} word forms.")
-        if args.max_wordforms_per_period is not None and args.max_wordforms_per_period < smallest_eligible_n:
-            print(f"Applying --max-wordforms-per-period cap: {selected_n:,} word forms per eligible period.")
+        print(f"Smallest ELIGIBLE time window sample: {smallest_eligible_n:,} word forms.")
+        if args.max_wordforms_per_window is not None and args.max_wordforms_per_window < smallest_eligible_n:
+            print(f"Applying --max-wordforms-per-window cap: {selected_n:,} word forms per eligible time window.")
         else:
-            print(f"Every eligible period will be limited to {selected_n:,} highest-frequency word forms.")
+            print(f"Every eligible time window will be limited to {selected_n:,} highest-frequency word forms.")
     else:
-        # In cap-preserve-periods mode, the target is an upper cap, not a lower
-        # threshold. A period with 612 forms keeps all 612; a period with 60,000
+        # In cap-preserve-windows mode, the target is an upper cap, not a lower
+        # threshold. A time window with 612 forms keeps all 612; a time window with 60,000
         # forms keeps only the top target_n forms. This controls maximum sample
-        # size without deleting sparse historical periods.
+        # size without deleting sparse historical time windows.
         target_n = args.target_wordforms_per_window
         if target_n is None:
             # Backward-compatible fallback. This should usually not happen because
             # the parser default is 1000.
-            target_n = args.max_wordforms_per_period
+            target_n = args.max_wordforms_per_window
         if target_n is None:
             raise ValueError(
-                "cap-preserve-periods mode requires --target-wordforms-per-period "
-                "or --max-wordforms-per-period."
+                "cap-preserve-windows mode requires --target-wordforms-per-window "
+                "or --max-wordforms-per-window."
             )
         if target_n <= 0:
-            raise ValueError("--target-wordforms-per-period must be positive.")
+            raise ValueError("--target-wordforms-per-window must be positive.")
 
-        window_counts["selected_sample_size_for_period"] = window_counts.apply(
+        window_counts["selected_sample_size_for_window"] = window_counts.apply(
             lambda row: min(int(row["available_wordforms_before_balancing"]), int(target_n))
-            if row["time_window_is_eligible_for_balancing"] else 0,
+            if row["time_window_is_eligible_for_sampling"] else 0,
             axis=1,
         )
-        print("Sampling mode: cap-preserve-periods")
-        print(f"Target/cap per period: {int(target_n):,} highest-frequency word forms.")
+        print("Sampling mode: cap-preserve-windows")
+        print(f"Target/cap per time window: {int(target_n):,} highest-frequency word forms.")
         print(
             "Periods with fewer available word forms than this cap will be kept in full "
             "and flagged as low-N, not discarded."
         )
         low_n_count = int(window_counts["time_window_is_low_n_warning"].sum())
-        print(f"Periods below --min-period-wordforms warning threshold: {low_n_count:,}")
+        print(f"Periods below --min-window-wordforms warning threshold: {low_n_count:,}")
 
     print(f"Periods found: {len(window_counts):,}")
-    print(f"Periods included in TP input: {len(eligible_periods):,}")
-    print(f"Periods excluded manually/by token threshold: {len(excluded_periods):,}")
-    if not excluded_periods.empty:
+    print(f"Periods included in TP input: {len(eligible_windows):,}")
+    print(f"Periods excluded manually/by token threshold: {len(excluded_windows):,}")
+    if not excluded_windows.empty:
         preview_cols = [
             "time_window_label",
             "available_wordforms_before_balancing",
             "total_token_count_represented_before_balancing",
             "time_window_exclusion_reason",
         ]
-        print("Excluded-period preview:")
-        print(excluded_periods[preview_cols].to_string(index=False, max_rows=20))
+        print("Excluded-time window preview:")
+        print(excluded_windows[preview_cols].to_string(index=False, max_rows=20))
 
     # -------------------------------------------------------------------------
-    # Select the highest-frequency word forms in each included period.
+    # Select the highest-frequency word forms in each included time window.
     # -------------------------------------------------------------------------
     wordforms = wordforms.merge(
         window_counts[[
             "time_window_label",
-            "time_window_is_eligible_for_balancing",
+            "time_window_is_eligible_for_sampling",
             "time_window_is_low_n_warning",
             "time_window_exclusion_reason",
             "sampling_mode",
             "target_wordforms_per_window",
-            "selected_sample_size_for_period",
+            "selected_sample_size_for_window",
         ]],
         on="time_window_label",
         how="left",
     )
-    wordforms_for_sampling = wordforms[wordforms["time_window_is_eligible_for_balancing"]].copy()
+    wordforms_for_sampling = wordforms[wordforms["time_window_is_eligible_for_sampling"]].copy()
 
     wordforms_for_sampling = wordforms_for_sampling.sort_values(
-        ["time_window_start", "token_count_in_period", "first_observed_year_in_period", "token", "vowel_seq"],
+        ["time_window_start", "token_count_in_window", "first_observed_year_in_window", "token", "vowel_seq"],
         ascending=[True, False, True, True, True],
     )
-    wordforms_for_sampling["frequency_rank_in_period"] = wordforms_for_sampling.groupby("time_window_label").cumcount() + 1
+    wordforms_for_sampling["frequency_rank_in_window"] = wordforms_for_sampling.groupby("time_window_label").cumcount() + 1
 
-    # Backward-compatible column name used by earlier outputs. In cap-preserve-periods
-    # mode this can vary by period; in strict-balanced mode it is constant.
-    wordforms_for_sampling["balanced_sample_size_per_period"] = wordforms_for_sampling["selected_sample_size_for_period"]
+    # Backward-compatible column name used by earlier outputs. In cap-preserve-windows
+    # mode this can vary by time window; in strict-balanced mode it is constant.
+    wordforms_for_sampling["balanced_sample_size_per_time window"] = wordforms_for_sampling["selected_sample_size_for_window"]
 
     balanced_wordforms = wordforms_for_sampling[
-        wordforms_for_sampling["frequency_rank_in_period"] <= wordforms_for_sampling["selected_sample_size_for_period"]
+        wordforms_for_sampling["frequency_rank_in_window"] <= wordforms_for_sampling["selected_sample_size_for_window"]
     ].copy()
 
     # -------------------------------------------------------------------------
@@ -999,29 +999,29 @@ def main() -> None:
     # -------------------------------------------------------------------------
     balanced_wordforms_path = args.output_dir / "time_window_wordforms.csv"
     balanced_tokens_path = args.output_dir / "sampled_time_window_original_token_rows.csv"
-    period_summary_path = args.output_dir / "time_window_summary.csv"
-    excluded_periods_path = args.output_dir / "excluded_time_windows_due_to_low_sample.csv"
-    all_period_diagnostics_path = args.output_dir / "all_time_window_diagnostics_before_sampling.csv"
+    time window_summary_path = args.output_dir / "time_window_summary.csv"
+    excluded_windows_path = args.output_dir / "excluded_time_windows_due_to_low_sample.csv"
+    all_time window_diagnostics_path = args.output_dir / "all_time_window_diagnostics_before_sampling.csv"
 
     balanced_wordforms.to_csv(balanced_wordforms_path, index=False, encoding="utf-8-sig")
-    window_counts.to_csv(all_period_diagnostics_path, index=False, encoding="utf-8-sig")
-    excluded_periods.to_csv(excluded_periods_path, index=False, encoding="utf-8-sig")
+    window_counts.to_csv(all_time window_diagnostics_path, index=False, encoding="utf-8-sig")
+    excluded_windows.to_csv(excluded_windows_path, index=False, encoding="utf-8-sig")
 
     selected_summary = (
         balanced_wordforms.groupby(["time_window_start", "time_window_end", "time_window_label"], as_index=False)
         .agg(
             selected_wordforms_after_balancing=("wordform_id", "nunique"),
-            tokens_in_selected_wordforms=("token_count_in_period", "sum"),
-            first_selected_year=("first_observed_year_in_period", "min"),
-            last_selected_year=("last_observed_year_in_period", "max"),
+            tokens_in_selected_wordforms=("token_count_in_window", "sum"),
+            first_selected_year=("first_observed_year_in_window", "min"),
+            last_selected_year=("last_observed_year_in_window", "max"),
         )
     )
-    period_summary = window_counts.merge(
+    time window_summary = window_counts.merge(
         selected_summary,
         on=["time_window_start", "time_window_end", "time_window_label"],
         how="left",
     )
-    period_summary.to_csv(period_summary_path, index=False, encoding="utf-8-sig")
+    time window_summary.to_csv(time window_summary_path, index=False, encoding="utf-8-sig")
 
     # -------------------------------------------------------------------------
     # Optional second pass: preserve original token rows belonging to selected word forms.
@@ -1053,7 +1053,7 @@ def main() -> None:
                 year_col=args.year_col,
                 token_col=args.token_col,
                 vowels_col=args.vowels_col,
-                period_size=args.period_size,
+                time window_size=args.time window_size,
                 anchor_year=anchor_year,
                 min_word_vowels=args.min_word_vowels,
                 min_analysis_year=analysis_start_year,
@@ -1090,18 +1090,18 @@ def main() -> None:
 
     print("\nWrote frequency-balanced outputs:")
     print(f"  1. {balanced_wordforms_path}")
-    print("     Main input for 02_run_tp_condition_tests.py; one row per selected word form per period.")
+    print("     Main input for 02_run_tp_condition_tests.py; one row per selected word form per time window.")
     if not args.skip_token_row_output:
         print(f"  2. {balanced_tokens_path}")
         print("     Original token rows represented by the selected word forms; useful for auditing.")
     else:
         print("  2. Skipped original token-row audit output because --skip-token-row-output was used.")
-    print(f"  3. {period_summary_path}")
+    print(f"  3. {time window_summary_path}")
     print("     Period-level sample-size and token-count diagnostics, including eligibility status.")
-    print(f"  4. {all_period_diagnostics_path}")
-    print("     Diagnostics for every configured period before balancing, including sparse periods.")
-    print(f"  5. {excluded_periods_path}")
-    print("     Periods excluded from the TP input. In cap-preserve-periods mode, this is usually empty unless periods were manually excluded or failed the token threshold.")
+    print(f"  4. {all_time window_diagnostics_path}")
+    print("     Diagnostics for every configured time window before balancing, including sparse time windows.")
+    print(f"  5. {excluded_windows_path}")
+    print("     Periods excluded from the TP input. In cap-preserve-windows mode, this is usually empty unless time windows were manually excluded or failed the token threshold.")
     print(f"  6. {args.output_dir / '01_balanced_sample_variable_descriptions.csv'}")
     print("     Variable descriptions for the balancing outputs.")
 
