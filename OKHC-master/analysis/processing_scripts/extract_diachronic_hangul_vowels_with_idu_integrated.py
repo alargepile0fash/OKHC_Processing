@@ -40,11 +40,6 @@ OUTPUT_FILE = OUTPUT_DIR / "hangul_vowel_tokens_diachronic.csv"
 # Recursively search INPUT_DIR for these file types.
 INPUT_PATTERNS = ["*.jsonl", "*.jsonl.gz"]
 
-# Keep this legacy column for backward compatibility with older analysis scripts.
-# Newer TP/D2L scripts should rebuild 25-year snapshots from the raw year column.
-PERIOD_START_YEAR = 1493
-PERIOD_SIZE = 50
-
 # Only keep token/readings with at least this many vowels.
 MIN_VOWELS = 2
 
@@ -111,56 +106,12 @@ LMK_EMK_TRANSITION_END = 1650
 
 
 # ============================================================
-# PERIODIZATION
+# TIME PERIODS
 # ============================================================
 
-def parse_year(year_value):
-    if year_value is None or year_value == "":
-        return None
-
-    try:
-        return int(float(year_value))
-    except (ValueError, TypeError):
-        return None
-
-
-def assign_50yr_period(year_value) -> str:
-    """
-    Legacy 50-year period label retained for backward compatibility.
-    The newer analysis scripts should use the raw year column and construct
-    25-year snapshots directly.
-    """
-    year = parse_year(year_value)
-
-    if year is None:
-        return "unknown"
-
-    if year < PERIOD_START_YEAR:
-        return f"pre_{PERIOD_START_YEAR}"
-
-    offset = year - PERIOD_START_YEAR
-    period_index = offset // PERIOD_SIZE
-
-    start = PERIOD_START_YEAR + period_index * PERIOD_SIZE
-    end = start + PERIOD_SIZE - 1
-
-    return f"{start}_{end}"
-
-
-def event_phase(year_value, start_year: int, end_year: int) -> str:
-    year = parse_year(year_value)
-
-    if year is None:
-        return "unknown"
-
-    if year < start_year:
-        return "before"
-
-    if start_year <= year <= end_year:
-        return "during"
-
-    return "after"
-
+# The extractor intentionally does not assign analysis periods.
+# Downstream scripts construct 25-year time-period samples from the raw year
+# column so temporal sampling remains a separate, reproducible analysis step.
 
 # ============================================================
 # TOKENIZATION
@@ -718,7 +669,6 @@ def process_corpus(input_dir: Path, output_file: Path) -> None:
         "input_file",
         "doc_id",
         "year",
-        "period_50yr",
         "arae_noninitial_phase",
         "arae_initial_phase",
         "lmk_emk_transition_phase",
