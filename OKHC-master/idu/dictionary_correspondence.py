@@ -24,10 +24,6 @@ IDU_EXCLUSIONS_FILENAME = "idu_exclusions.json"
 IDU_NOUN_EXCLUSIONS_FILENAME = "idu_noun_exclusions.json"
 IDU_HEADS_FILENAME = "idu_heads.json"
 
-ENABLE_IDU_DICTIONARY_HANGUL_CORRESPONDENCES = True
-EMIT_IDU_GENERAL_EXCLUSION_MATCHES = False
-EMIT_IDU_NOUN_EXCLUSION_MATCHES = True
-EMIT_ALL_IDU_READING_VARIANTS = True
 
 
 def _load_json_or_jsonl(path: Path):
@@ -57,7 +53,11 @@ def normalize_letters_only(text: str) -> str:
     return "".join(ch for ch in text if ud.category(ch).startswith("L"))
 
 
-def load_idu_resources() -> dict:
+def load_idu_resources(
+    *,
+    emit_general_exclusion_matches: bool = False,
+    emit_noun_exclusion_matches: bool = True,
+) -> dict:
     """
     Load Idu dictionary resources.
 
@@ -118,10 +118,10 @@ def load_idu_resources() -> dict:
         if not idu_text or not hangul_text:
             continue
 
-        if idu_text in general_exclusions and not EMIT_IDU_GENERAL_EXCLUSION_MATCHES:
+        if idu_text in general_exclusions and not emit_general_exclusion_matches:
             continue
 
-        if idu_text in noun_exclusions and not EMIT_IDU_NOUN_EXCLUSION_MATCHES:
+        if idu_text in noun_exclusions and not emit_noun_exclusion_matches:
             continue
 
         entry = {
