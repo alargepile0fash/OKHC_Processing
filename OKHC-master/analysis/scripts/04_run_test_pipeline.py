@@ -27,7 +27,6 @@ def load_config(path: Path) -> dict:
         "extraction_config",
         "sampling_config",
         "output_dir",
-        "max_word_vowels_expected",
     }
     missing = required - config.keys()
     if missing:
@@ -101,7 +100,9 @@ def main() -> None:
     extracted = pd.read_csv(extracted_file, encoding="utf-8-sig")
     sampled = pd.read_csv(sampled_file, encoding="utf-8-sig")
 
-    expected_max = config["max_word_vowels_expected"]
+    expected_max = sampling_config["max_word_vowels"]
+    if expected_max is None:
+        raise ValueError("The test sampling config must set max_word_vowels.")
     extracted_over_max = int((extracted["num_vowels"] > expected_max).sum())
     sampled_over_max = int(
         (sampled["num_vowels_normalized"] > expected_max).sum()
