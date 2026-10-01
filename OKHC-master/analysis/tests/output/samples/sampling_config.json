@@ -1,0 +1,23 @@
+{
+  "config": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\config\\testing\\sampling_test.json",
+  "input": "analysis/tests/output/vowels/hangul_vowel_tokens_diachronic.csv",
+  "output_dir": "analysis/tests/output/samples",
+  "year_col": "year",
+  "token_col": "token",
+  "vowels_col": "vowels",
+  "window_width": 25,
+  "window_step": 25,
+  "start_year": null,
+  "min_word_vowels": 2,
+  "max_word_vowels": 2,
+  "chunksize": 250000,
+  "min_window_wordforms": 0,
+  "min_window_tokens": 0,
+  "max_wordforms_per_window": null,
+  "sampling_mode": "cap-preserve-windows",
+  "target_wordforms_per_window": 1000,
+  "exclude_windows": [],
+  "skip_token_row_output": false,
+  "anchor_year": 1125,
+  "window_overlap_years": 0
+}
