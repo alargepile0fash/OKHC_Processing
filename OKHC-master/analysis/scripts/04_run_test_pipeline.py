@@ -79,7 +79,7 @@ def test_harmony_classification() -> None:
         (["ㅏ", "ㅑ"], "unclassifiable_due_to_other", "harmonic"),
         (["ㅏ", "ㅘ"], "unclassifiable_due_to_other", "harmonic"),
         (["ㅘ", "ㅝ"], "unclassifiable_due_to_other", "disharmonic"),
-        (["ㅏ", "ㅢ"], "unclassifiable_due_to_other", "harmonic"),
+        (["ㅏ", "ㅢ"], "unclassifiable_due_to_other", "disharmonic"),
     ]
 
     for vowels, expected_core, expected_expanded in cases:
@@ -95,8 +95,68 @@ def test_harmony_classification() -> None:
     print("PASS: core and nucleus-based expanded harmony classifications behave as expected.")
 
 
+def test_idu_match_offsets() -> None:
+    """Verify Idu matching preserves offsets in the original Unicode text."""
+    from idu.dictionary_correspondence import (
+        build_idu_trie,
+        find_nonoverlapping_longest_idu_matches,
+    )
+
+    trie = build_idu_trie({
+        "A": [{"sequence": 1, "hangul_text": "가"}],
+        "AB": [{"sequence": 2, "hangul_text": "나다"}],
+    })
+    matches = find_nonoverlapping_longest_idu_matches("xＡB y", trie)
+
+    if len(matches) != 1:
+        raise AssertionError(
+            f"Idu offset test expected one longest match, got {len(matches)}."
+        )
+
+    match = matches[0]
+    if match["start"] != 1 or match["end"] != 3 or match["match_text"] != "AB":
+        raise AssertionError(
+            "Idu offset test failed: normalized matching did not preserve "
+            "the original-text span."
+        )
+
+    print("PASS: normalized Idu matching preserves original-text offsets.")
+
+
+def test_sampling_max_word_vowels() -> None:
+    """Exercise the upper word-vowel bound with a deterministic synthetic chunk."""
+    from argparse import Namespace
+    from analysis.scripts.sampling_logic.corpus import prepare_chunk
+
+    args = Namespace(
+        year_col="year",
+        token_col="token",
+        vowels_col="vowels",
+        start_year=None,
+        min_word_vowels=2,
+        max_word_vowels=2,
+        window_width=25,
+        window_step=25,
+    )
+    chunk = pd.DataFrame([
+        {"year": 1500, "token": "aa", "vowels": "ㅏ,ㅗ", "token_source": "original_hangul_token"},
+        {"year": 1500, "token": "bbb", "vowels": "ㅏ,ㅗ,ㅏ", "token_source": "original_hangul_token"},
+    ])
+    prepared = prepare_chunk(chunk, args, anchor_year=1500)
+
+    if set(prepared["token"]) != {"aa"}:
+        raise AssertionError(
+            "max_word_vowels test failed: a three-vowel wordform survived "
+            "the configured two-vowel upper bound."
+        )
+
+    print("PASS: max_word_vowels upper bound excludes over-limit wordforms.")
+
+
 def main() -> None:
     test_harmony_classification()
+    test_idu_match_offsets()
+    test_sampling_max_word_vowels()
     config = load_config(parse_args().config)
 
     if config["output_dir"].exists():
