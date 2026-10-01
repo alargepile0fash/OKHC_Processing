@@ -153,10 +153,48 @@ def test_sampling_max_word_vowels() -> None:
     print("PASS: max_word_vowels upper bound excludes over-limit wordforms.")
 
 
+def test_sampling_max_cap() -> None:
+    """Verify max_wordforms_per_window caps cap-preserve-windows mode."""
+    from argparse import Namespace
+    from analysis.scripts.sampling_logic.sampling import make_window_diagnostics, select_wordforms
+
+    args = Namespace(
+        sampling_mode="cap-preserve-windows",
+        target_wordforms_per_window=3,
+        max_wordforms_per_window=2,
+        min_window_wordforms=0,
+        min_window_tokens=0,
+        window_width=25,
+        window_step=25,
+        exclude_windows=[],
+    )
+    wordforms = pd.DataFrame([
+        {"time_window_start": 1500, "time_window_end": 1524, "time_window_id": "1500-1524",
+         "wordform_id": f"w{i}", "token": f"w{i}", "vowel_seq": "ㅏ ㅗ",
+         "token_count_in_window": 10 - i, "first_observed_year_in_window": 1500,
+         "num_vowels_normalized": 2, "token_sources_present": "original_hangul_token",
+         "contains_idu_derived_observation": False,
+         "vowel_classes_core": "+RTR,+RTR", "harmony_status_core": "harmonic",
+         "vowel_classes_expanded": "+RTR,+RTR", "harmony_status_expanded": "harmonic"}
+        for i in range(4)
+    ])
+    diagnostics = make_window_diagnostics(wordforms, args)
+    selected, _ = select_wordforms(wordforms, diagnostics, args)
+
+    if len(selected) != 2:
+        raise AssertionError(
+            "max_wordforms_per_window test failed: cap-preserve-windows "
+            f"selected {len(selected)} rows instead of 2."
+        )
+
+    print("PASS: max_wordforms_per_window caps cap-preserve-windows mode.")
+
+
 def main() -> None:
     test_harmony_classification()
     test_idu_match_offsets()
     test_sampling_max_word_vowels()
+    test_sampling_max_cap()
     config = load_config(parse_args().config)
 
     if config["output_dir"].exists():
@@ -222,6 +260,27 @@ def main() -> None:
             f"{sorted(missing_sampled_harmony_columns)}"
         )
     print("PASS: sampled output preserves all core and expanded harmony columns.")
+
+    # Verify that sampling preserved the actual classification values, not
+    # merely the column names.
+    extraction_lookup = (
+        extracted[["token", "vowels", "vowel_classes_core", "harmony_status_core",
+                   "vowel_classes_expanded", "harmony_status_expanded"]]
+        .drop_duplicates()
+    )
+    sampled_check = sampled.merge(
+        extraction_lookup,
+        on=["token", "vowels", "vowel_classes_core", "harmony_status_core",
+            "vowel_classes_expanded", "harmony_status_expanded"],
+        how="left",
+        indicator=True,
+    )
+    if (sampled_check["_merge"] != "both").any():
+        raise AssertionError(
+            "Sampled harmony classification values do not match the extraction-stage "
+            "classifications for one or more sampled wordforms."
+        )
+    print("PASS: sampled harmony classification values match extraction output.")
 
     # Idu-derived dictionary readings are excluded from the analytical extraction
     # dataset when the extraction config enables that exclusion.
