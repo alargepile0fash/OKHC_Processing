@@ -750,6 +750,12 @@ def main() -> None:
         args.token_col,
         "vowel_seq",
     ]
+    def merge_source_labels(series: pd.Series) -> str:
+        labels = set()
+        for value in series.dropna().astype(str):
+            labels.update(label for label in value.split("|") if label)
+        return "|".join(sorted(labels))
+
     wordforms = (
         wordforms.groupby(combined_group_cols, dropna=False)
         .agg(
@@ -757,8 +763,12 @@ def main() -> None:
             first_observed_year_in_period=("first_observed_year_in_period", "min"),
             last_observed_year_in_period=("last_observed_year_in_period", "max"),
             num_vowels_normalized=("num_vowels_normalized", "first"),
+            token_sources_present=("token_sources_present", merge_source_labels),
         )
         .reset_index()
+    )
+    wordforms["contains_idu_derived_observation"] = wordforms["token_sources_present"].str.contains(
+        "idu_dictionary_hangul_correspondence", regex=False, na=False
     )
 
     # Make output column names stable even if command-line names differ.
