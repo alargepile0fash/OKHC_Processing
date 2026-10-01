@@ -1,12 +1,9 @@
-"""Run the full OKHC analysis pipeline on the small raw test corpus.
-
-This keeps test outputs under analysis/tests/output/ and never touches the
-production raw_data/ or analysis/data/ directories.
-"""
+"""Run the full OKHC analysis pipeline on the small raw test corpus."""
 
 from __future__ import annotations
 
-import os
+import argparse
+import json
 import shutil
 import subprocess
 import sys
@@ -16,88 +13,127 @@ import pandas as pd
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TEST_DIR = REPO_ROOT / "analysis" / "tests"
-OUTPUT_DIR = TEST_DIR / "output"
-
-RAW_INPUT = TEST_DIR
-PROCESSED_OUTPUT = OUTPUT_DIR / "processed"
-EXTRACTED_OUTPUT = OUTPUT_DIR / "vowels"
-SAMPLED_OUTPUT = OUTPUT_DIR / "samples"
-
-SAMPLING_CONFIG = REPO_ROOT / "analysis" / "config" / "sampling_test.json"
+DEFAULT_CONFIG = REPO_ROOT / "analysis" / "config" / "test_pipeline.json"
 
 
-def run(script: Path, env: dict[str, str], *extra_args: str) -> None:
+def load_config(path: Path) -> dict:
+    """Load test-pipeline settings from JSON."""
+    with path.open("r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    required = {
+        "raw_input",
+        "preprocessing_config",
+        "extraction_config",
+        "sampling_config",
+        "output_dir",
+        "max_word_vowels_expected",
+    }
+    missing = required - config.keys()
+    if missing:
+        raise ValueError(f"Missing test pipeline config keys: {sorted(missing)}")
+
+    config["raw_input"] = REPO_ROOT / config["raw_input"]
+    config["preprocessing_config"] = REPO_ROOT / config["preprocessing_config"]
+    config["extraction_config"] = REPO_ROOT / config["extraction_config"]
+    config["sampling_config"] = REPO_ROOT / config["sampling_config"]
+    config["output_dir"] = REPO_ROOT / config["output_dir"]
+
+    return config
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG,
+        help=f"JSON configuration file (default: {DEFAULT_CONFIG})",
+    )
+    return parser.parse_args()
+
+
+def load_json(path: Path) -> dict:
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def run(script: Path, *extra_args: str) -> None:
     """Run one pipeline stage and stop immediately if it fails."""
     command = [sys.executable, str(script), *extra_args]
     print("\n$", " ".join(command))
-    subprocess.run(command, cwd=REPO_ROOT, env=env, check=True)
+    subprocess.run(command, cwd=REPO_ROOT, check=True)
 
 
 def main() -> None:
-    sample_file = TEST_DIR / "sample.jsonl"
-    if not sample_file.exists():
-        raise FileNotFoundError(f"Test fixture not found: {sample_file}")
+    config = load_config(parse_args().config)
 
-    if OUTPUT_DIR.exists():
-        shutil.rmtree(OUTPUT_DIR)
+    if not config["raw_input"].exists():
+        raise FileNotFoundError(f"Test fixture not found: {config['raw_input']}")
 
-    PROCESSED_OUTPUT.mkdir(parents=True)
-    EXTRACTED_OUTPUT.mkdir(parents=True)
-    SAMPLED_OUTPUT.mkdir(parents=True)
+    if config["output_dir"].exists():
+        shutil.rmtree(config["output_dir"])
 
-    env = os.environ.copy()
-    env["OKHC_RAW_INPUT"] = str(RAW_INPUT)
-    env["OKHC_PROCESSED_OUTPUT"] = str(PROCESSED_OUTPUT)
-    env["OKHC_SKIP_EXISTING_OUTPUT"] = "0"
-    env["OKHC_EXTRACT_INPUT"] = str(PROCESSED_OUTPUT)
-    env["OKHC_EXTRACT_OUTPUT"] = str(EXTRACTED_OUTPUT)
+    config["output_dir"].mkdir(parents=True)
 
     run(
         REPO_ROOT / "analysis" / "scripts" / "01_preprocess_corpus.py",
-        env,
+        "--config",
+        str(config["preprocessing_config"]),
     )
     run(
         REPO_ROOT / "analysis" / "scripts" / "02_extract_diachronic_vowels.py",
-        env,
+        "--config",
+        str(config["extraction_config"]),
     )
     run(
         REPO_ROOT / "analysis" / "scripts" / "03_prepare_time_window_samples.py",
-        env,
         "--config",
-        str(SAMPLING_CONFIG),
+        str(config["sampling_config"]),
     )
 
-    extracted_file = EXTRACTED_OUTPUT / "hangul_vowel_tokens_diachronic.csv"
-    sampled_file = SAMPLED_OUTPUT / "sampled_time_window_wordforms.csv"
+    extraction_config = load_json(config["extraction_config"])
+    sampling_config = load_json(config["sampling_config"])
+
+    extracted_file = REPO_ROOT / extraction_config["output_file"]
+    sampled_file = REPO_ROOT / sampling_config["output_dir"] / "sampled_time_window_wordforms.csv"
 
     extracted = pd.read_csv(extracted_file, encoding="utf-8-sig")
     sampled = pd.read_csv(sampled_file, encoding="utf-8-sig")
 
-    extracted_over_5 = int((extracted["num_vowels"] > 5).sum())
-    sampled_over_5 = int((sampled["num_vowels_normalized"] > 5).sum())
+    expected_max = config["max_word_vowels_expected"]
+    extracted_over_max = int((extracted["num_vowels"] > expected_max).sum())
+    sampled_over_max = int(
+        (sampled["num_vowels_normalized"] > expected_max).sum()
+    )
 
     print("\n=== TEST RESULT ===")
     print(f"Extracted rows: {len(extracted):,}")
-    print(f"Extracted rows with >5 vowels: {extracted_over_5:,}")
+    print(f"Extracted rows with >{expected_max} vowels: {extracted_over_max:,}")
     print(f"Sampled word forms: {len(sampled):,}")
-    print(f"Sampled word forms with >5 vowels: {sampled_over_5:,}")
+    print(
+        f"Sampled word forms with >{expected_max} vowels: "
+        f"{sampled_over_max:,}"
+    )
 
-    if sampled_over_5 != 0:
+    if sampled_over_max != 0:
         raise AssertionError(
-            "The max_word_vowels=5 filter failed: sampled output contains "
-            "a word form with more than 5 vowels."
+            f"The max_word_vowels={expected_max} filter failed: "
+            "sampled output contains a word form above the configured limit."
         )
 
-    if extracted_over_5 == 0:
+    if extracted_over_max == 0:
         print(
-            "WARNING: the sample produced no extracted rows with >5 vowels, "
-            "so the new upper-limit filter was not directly exercised."
+            f"WARNING: the fixture produced no extracted rows with >{expected_max} "
+            "vowels, so the upper-limit filter was not directly exercised."
         )
     else:
-        print("PASS: every extracted >5-vowel row was excluded by sampling.")
+        print(
+            f"PASS: every extracted >{expected_max}-vowel row was excluded "
+            "by sampling."
+        )
 
-    print(f"Test outputs: {OUTPUT_DIR}")
+    print(f"Test outputs: {config['output_dir']}")
 
 
 if __name__ == "__main__":
