@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sampling_logic.config import parse_args, validate_settings
 from sampling_logic.windows import choose_anchor_year
