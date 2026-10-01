@@ -102,10 +102,21 @@ VOWEL_NORMALIZATION = {
     "ᆞ": "ㆍ", "ㆍ": "ㆍ", "ㆎ": "ㆎ",
 }
 
-PLUS_RTR = {"ㆍ", "ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ"}
-MINUS_RTR = {"ㅡ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ"}
-NEUTRAL = {"ㅣ"}
-SPECIAL = {"ㅢ", "ㆎ"}
+CORE_PLUS_RTR = {"ㆍ", "ㅏ", "ㅗ"}
+CORE_MINUS_RTR = {"ㅡ", "ㅓ", "ㅜ"}
+CORE_NEUTRAL = {"ㅣ"}
+
+EXPANDED_PLUS_RTR = {"ㆍ", "ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ"}
+EXPANDED_MINUS_RTR = {"ㅡ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ"}
+EXPANDED_NEUTRAL = {"ㅣ"}
+
+# Historical complex vowels inherit the harmony value of their nucleus.
+EXPANDED_NUCLEUS_CLASS = {
+    "ㅑ": "+RTR", "ㅕ": "-RTR", "ㅛ": "+RTR", "ㅠ": "-RTR",
+    "ㅘ": "+RTR", "ㅝ": "-RTR", "ㅙ": "+RTR", "ㅞ": "-RTR",
+    "ㅐ": "+RTR", "ㅔ": "-RTR", "ㅚ": "+RTR", "ㅟ": "-RTR",
+    "ㅢ": "-RTR", "ㆎ": "+RTR",
+}
 
 ARAE_A = "ㆍ"
 ARAE_INITIAL_REFLEX = "ㅏ"
@@ -135,31 +146,43 @@ def extract_vowels(token: str) -> list[str]:
     return vowels
 
 
-def vowel_class(vowel: str) -> str:
-    if vowel in PLUS_RTR:
-        return "+RTR"
-    if vowel in MINUS_RTR:
-        return "-RTR"
-    if vowel in NEUTRAL:
-        return "NEUTRAL"
-    if vowel in SPECIAL:
-        return "SPECIAL"
-    return "OTHER"
+def vowel_class(vowel: str, inventory: str = "expanded") -> str:
+    """Classify one vowel under the selected harmony inventory."""
+    if inventory == "core":
+        if vowel in CORE_PLUS_RTR:
+            return "+RTR"
+        if vowel in CORE_MINUS_RTR:
+            return "-RTR"
+        if vowel in CORE_NEUTRAL:
+            return "NEUTRAL"
+        return "OTHER"
+
+    if inventory == "expanded":
+        if vowel in EXPANDED_PLUS_RTR:
+            return "+RTR"
+        if vowel in EXPANDED_MINUS_RTR:
+            return "-RTR"
+        if vowel in EXPANDED_NEUTRAL:
+            return "NEUTRAL"
+        if vowel in EXPANDED_NUCLEUS_CLASS:
+            return EXPANDED_NUCLEUS_CLASS[vowel]
+        return "OTHER"
+
+    raise ValueError(f"Unknown harmony inventory: {inventory}")
 
 
-def classify_vowel_sequence(vowels: list[str]) -> str:
-    classes = [vowel_class(v) for v in vowels]
+def classify_vowel_sequence(vowels: list[str], inventory: str = "expanded") -> str:
+    """Classify harmony consistency without silently ignoring OTHER vowels.
 
-    if "SPECIAL" in classes:
-        return "special_vowel_present"
+    In the core inventory, vowels outside the classical seven-vowel system
+    make the sequence unclassifiable rather than harmonic or disharmonic.
+    """
+    classes = [vowel_class(v, inventory) for v in vowels]
 
     if "OTHER" in classes:
-        return "other_vowel_present"
+        return "unclassifiable_due_to_other"
 
-    non_neutral_classes = [
-        c for c in classes
-        if c != "NEUTRAL"
-    ]
+    non_neutral_classes = [c for c in classes if c != "NEUTRAL"]
 
     if not non_neutral_classes:
         return "neutral_only"
@@ -329,7 +352,8 @@ def build_vowel_row(
     idu_metadata: dict | None = None,
 ) -> dict:
     flags = arae_flags(vowels)
-    classes = [vowel_class(v) for v in vowels]
+    core_classes = [vowel_class(v, "core") for v in vowels]
+    expanded_classes = [vowel_class(v, "expanded") for v in vowels]
     idu_metadata = idu_metadata or {}
 
     return {
@@ -339,9 +363,14 @@ def build_vowel_row(
         "token_context": token_context,
         "sino_proxy": bool_int(is_sino_proxy(row, token_context, token_source)),
         "vowels": ",".join(vowels),
-        "vowel_classes": ",".join(classes),
+        "vowel_classes_core": ",".join(core_classes),
+        "harmony_status_core": classify_vowel_sequence(vowels, "core"),
+        "vowel_classes_expanded": ",".join(expanded_classes),
+        "harmony_status_expanded": classify_vowel_sequence(vowels, "expanded"),
+        # Backward-compatible aliases use the expanded model.
+        "vowel_classes": ",".join(expanded_classes),
         "num_vowels": len(vowels),
-        "harmony_status": classify_vowel_sequence(vowels),
+        "harmony_status": classify_vowel_sequence(vowels, "expanded"),
         "has_arae_a": bool_int(flags["has_arae_a"]),
         "has_a": bool_int(flags["has_a"]),
         "has_eu": bool_int(flags["has_eu"]),
@@ -402,7 +431,9 @@ def process_corpus(config: dict) -> None:
         "source", "corpus", "language", "language_score", "category",
         "script", "script_kor", "script_oko", "script_han",
         "token", "token_source", "token_context", "sino_proxy",
-        "vowels", "vowel_classes", "num_vowels", "harmony_status",
+        "vowels", "vowel_classes_core", "harmony_status_core",
+        "vowel_classes_expanded", "harmony_status_expanded",
+        "vowel_classes", "num_vowels", "harmony_status",
         "has_arae_a", "has_a", "has_eu", "has_initial_a",
         "has_noninitial_eu", "has_any_arae_related",
         "idu_match_text", "idu_match_start", "idu_match_end",
