@@ -721,6 +721,7 @@ def main() -> None:
                     first_observed_year_in_period=(args.year_col, "min"),
                     last_observed_year_in_period=(args.year_col, "max"),
                     num_vowels_normalized=("num_vowels_normalized", "first"),
+                    token_sources_present=("token_source", lambda s: "|".join(sorted(set(s.astype(str))))),
                 )
                 .reset_index()
             )
