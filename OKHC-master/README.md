@@ -160,7 +160,7 @@ The sampler writes these main files to the configured output directory:
 ```
 sampled_time_window_wordforms.csv
 all_time_window_diagnostics_before_sampling.csv
-excluded_time_windows_due_to_low_sample.csv
+excluded_time_windows.csv
 time_window_summary.csv
 sampled_time_window_original_token_rows.csv
 sampling_config.json
