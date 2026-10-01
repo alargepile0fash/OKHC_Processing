@@ -8,14 +8,7 @@ from pathlib import Path
 import regex as re
 from tqdm import tqdm
 
-from idu.dictionary_correspondence import (
-    ENABLE_IDU_DICTIONARY_HANGUL_CORRESPONDENCES,
-    EMIT_ALL_IDU_READING_VARIANTS,
-    build_idu_trie,
-    find_nonoverlapping_longest_idu_matches,
-    load_idu_resources,
-    split_idu_hangul_readings,
-)
+# Project imports are added after the repository root is on sys.path.
 
 
 # ============================================================
@@ -30,6 +23,16 @@ from idu.dictionary_correspondence import (
 # parents[2] = OKHC-master
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
+
+
+from idu.dictionary_correspondence import (
+    ENABLE_IDU_DICTIONARY_HANGUL_CORRESPONDENCES,
+    EMIT_ALL_IDU_READING_VARIANTS,
+    build_idu_trie,
+    find_nonoverlapping_longest_idu_matches,
+    load_idu_resources,
+    split_idu_hangul_readings,
+)
 
 
 # ============================================================
