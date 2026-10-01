@@ -31,7 +31,6 @@ def load_config(path: Path) -> dict:
     if missing:
         raise ValueError(f"Missing test pipeline config keys: {sorted(missing)}")
 
-    config["raw_input"] = REPO_ROOT / config["raw_input"]
     config["preprocessing_config"] = REPO_ROOT / config["preprocessing_config"]
     config["extraction_config"] = REPO_ROOT / config["extraction_config"]
     config["sampling_config"] = REPO_ROOT / config["sampling_config"]
@@ -66,9 +65,6 @@ def run(script: Path, *extra_args: str) -> None:
 def main() -> None:
     config = load_config(parse_args().config)
 
-    if not config["raw_input"].exists():
-        raise FileNotFoundError(f"Test fixture not found: {config['raw_input']}")
-
     if config["output_dir"].exists():
         shutil.rmtree(config["output_dir"])
 
@@ -94,7 +90,12 @@ def main() -> None:
     sampling_config = load_json(config["sampling_config"])
 
     extracted_file = REPO_ROOT / extraction_config["output_file"]
-    sampled_file = REPO_ROOT / sampling_config["output_dir"] / "sampled_time_window_wordforms.csv"
+    sampling_output_dir = (
+        REPO_ROOT
+        / sampling_config["runs_dir"]
+        / sampling_config["run_name"]
+    )
+    sampled_file = sampling_output_dir / "sampled_time_window_wordforms.csv"
 
     extracted = pd.read_csv(extracted_file, encoding="utf-8-sig")
     sampled = pd.read_csv(sampled_file, encoding="utf-8-sig")
@@ -102,14 +103,20 @@ def main() -> None:
     expected_max = sampling_config["max_word_vowels"]
     if expected_max is None:
         raise ValueError("The test sampling config must set max_word_vowels.")
-    extracted_over_max = int((extracted["num_vowels"] > expected_max).sum())
+
+    extracted_over_max = int(
+        (extracted["num_vowels"] > expected_max).sum()
+    )
     sampled_over_max = int(
         (sampled["num_vowels_normalized"] > expected_max).sum()
     )
 
     print("\n=== TEST RESULT ===")
     print(f"Extracted rows: {len(extracted):,}")
-    print(f"Extracted rows with >{expected_max} vowels: {extracted_over_max:,}")
+    print(
+        f"Extracted rows with >{expected_max} vowels: "
+        f"{extracted_over_max:,}"
+    )
     print(f"Sampled word forms: {len(sampled):,}")
     print(
         f"Sampled word forms with >{expected_max} vowels: "
