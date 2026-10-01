@@ -18,12 +18,12 @@ def write_outputs(selected: pd.DataFrame, diagnostics: pd.DataFrame, output_dir:
     selected.to_csv(output_dir / "sampled_time_window_wordforms.csv", index=False, encoding="utf-8-sig")
     diagnostics.to_csv(output_dir / "all_time_window_diagnostics_before_sampling.csv", index=False, encoding="utf-8-sig")
     diagnostics[~diagnostics["time_window_is_eligible_for_sampling"]].to_csv(
-        output_dir / "excluded_time_windows_due_to_low_sample.csv", index=False, encoding="utf-8-sig"
+        output_dir / "excluded_time_windows_due_to_windows.csv", index=False, encoding="utf-8-sig"
     )
 
     summary = diagnostics.merge(
         selected.groupby(
-            ["time_window_start", "time_window_end", "time_window_label", "time_window_id"],
+            ["time_window_start", "time_window_end", "time_window_id", "time_window_id"],
             as_index=False,
         ).agg(
             selected_wordforms_after_sampling=("wordform_id", "nunique"),
@@ -31,7 +31,7 @@ def write_outputs(selected: pd.DataFrame, diagnostics: pd.DataFrame, output_dir:
             first_selected_year=("first_observed_year_in_window", "min"),
             last_selected_year=("last_observed_year_in_window", "max"),
         ),
-        on=["time_window_start", "time_window_end", "time_window_label", "time_window_id"],
+        on=["time_window_start", "time_window_end", "time_window_id", "time_window_id"],
         how="left",
     )
     summary.to_csv(output_dir / "time_window_summary.csv", index=False, encoding="utf-8-sig")
@@ -46,7 +46,7 @@ def write_selected_token_rows(
 ) -> None:
     """Write original token rows represented by the selected word forms."""
     keys = set(
-        selected["time_window_label"].astype(str) + "\x1e" + selected["wordform_id"].astype(str)
+        selected["time_window_id"].astype(str) + "\x1e" + selected["wordform_id"].astype(str)
     )
     output = output_dir / "sampled_time_window_original_token_rows.csv"
     wrote_header = False
@@ -66,7 +66,7 @@ def write_selected_token_rows(
             continue
 
         prepared["selection_key"] = (
-            prepared["time_window_label"].astype(str) + "\x1e" + prepared["wordform_id"].astype(str)
+            prepared["time_window_id"].astype(str) + "\x1e" + prepared["wordform_id"].astype(str)
         )
         rows = prepared[prepared["selection_key"].isin(keys)].drop(
             columns=["vowel_seq_list", "selection_key"], errors="ignore"
