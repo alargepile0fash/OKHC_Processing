@@ -22,7 +22,6 @@ def load_config(path: Path) -> dict:
         config = json.load(f)
 
     required = {
-        "raw_input",
         "preprocessing_config",
         "extraction_config",
         "sampling_config",
