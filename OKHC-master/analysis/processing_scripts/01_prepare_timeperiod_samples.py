@@ -162,7 +162,7 @@ def looks_like_project_root(path: Path) -> bool:
     Return True when a directory looks like the OKHC project root.
 
     This script is usually stored at:
-        OKHC-master/analysis/processing_scripts/01_build_balanced_period_sample.py
+        OKHC-master/analysis/processing_scripts/01_build_time_window_sample.py
 
     PyCharm may run the script with a working directory that is NOT OKHC-master.
     Therefore, defaults should be resolved relative to the detected project root,
@@ -787,9 +787,9 @@ def main() -> None:
     wordforms = pd.concat(grouped_chunks, ignore_index=True)
 
     combined_group_cols = [
-        "period_start",
-        "period_end",
-        "period_label",
+        "time_window_start",
+        "time_window_end",
+        "time_window_label",
         "wordform_id",
         args.token_col,
         "vowel_seq",
@@ -829,45 +829,45 @@ def main() -> None:
     # requested sampling mode.
     # -------------------------------------------------------------------------
     window_counts = (
-        wordforms.groupby(["period_start", "period_end", "period_label"], as_index=False)
+        wordforms.groupby(["time_window_start", "time_window_end", "time_window_label"], as_index=False)
         .agg(
             available_wordforms_before_balancing=("wordform_id", "nunique"),
             total_token_count_represented_before_balancing=("token_count_in_period", "sum"),
         )
-        .sort_values("period_start")
+        .sort_values("time_window_start")
     )
 
     manually_excluded_windows = set(str(p) for p in args.exclude_periods)
-    period_counts["sampling_mode"] = args.sampling_mode
-    period_counts["min_period_wordforms_for_balancing"] = args.min_period_wordforms
-    period_counts["min_period_tokens_for_balancing"] = args.min_period_tokens
-    period_counts["target_wordforms_per_period"] = args.target_wordforms_per_window
-    period_counts["max_wordforms_per_period"] = args.max_wordforms_per_period
-    period_counts["period_is_low_n_warning"] = (
-        period_counts["available_wordforms_before_balancing"] < args.min_period_wordforms
+    window_counts["sampling_mode"] = args.sampling_mode
+    window_counts["min_period_wordforms_for_balancing"] = args.min_period_wordforms
+    window_counts["min_period_tokens_for_balancing"] = args.min_period_tokens
+    window_counts["target_wordforms_per_window"] = args.target_wordforms_per_window
+    window_counts["max_wordforms_per_period"] = args.max_wordforms_per_period
+    window_counts["time_window_is_low_n_warning"] = (
+        window_counts["available_wordforms_before_balancing"] < args.min_period_wordforms
     )
 
     if args.sampling_mode == "strict-balanced":
         # Older behavior: periods below thresholds are removed from the TP input,
         # then every remaining period is forced to the same sample size.
-        period_counts["period_is_eligible_for_balancing"] = (
-            (period_counts["available_wordforms_before_balancing"] >= args.min_period_wordforms)
-            & (period_counts["total_token_count_represented_before_balancing"] >= args.min_period_tokens)
-            & (~period_counts["period_label"].astype(str).isin(manually_excluded))
+        window_counts["time_window_is_eligible_for_balancing"] = (
+            (window_counts["available_wordforms_before_balancing"] >= args.min_period_wordforms)
+            & (window_counts["total_token_count_represented_before_balancing"] >= args.min_period_tokens)
+            & (~window_counts["time_window_label"].astype(str).isin(manually_excluded))
         )
     else:
         # New default behavior: preserve the time frame. Low-N periods are flagged
         # but not discarded, because discarding all pre-1667 periods would create
         # exactly the kind of historical gap this analysis is trying to avoid.
-        period_counts["period_is_eligible_for_balancing"] = (
-            (period_counts["available_wordforms_before_balancing"] > 0)
-            & (period_counts["total_token_count_represented_before_balancing"] >= args.min_period_tokens)
-            & (~period_counts["period_label"].astype(str).isin(manually_excluded))
+        window_counts["time_window_is_eligible_for_balancing"] = (
+            (window_counts["available_wordforms_before_balancing"] > 0)
+            & (window_counts["total_token_count_represented_before_balancing"] >= args.min_period_tokens)
+            & (~window_counts["time_window_label"].astype(str).isin(manually_excluded))
         )
 
     def explain_period_exclusion(row: pd.Series) -> str:
         """Give a readable reason for each period's inclusion/exclusion status."""
-        if str(row["period_label"]) in manually_excluded:
+        if str(row["time_window_label"]) in manually_excluded:
             return "EXCLUDED: manually listed in --exclude-periods"
         if row["total_token_count_represented_before_balancing"] < args.min_period_tokens:
             return (
@@ -886,10 +886,10 @@ def main() -> None:
             )
         return "INCLUDED"
 
-    period_counts["period_exclusion_reason"] = period_counts.apply(explain_period_exclusion, axis=1)
+    window_counts["time_window_exclusion_reason"] = window_counts.apply(explain_period_exclusion, axis=1)
 
-    eligible_windows = period_counts[period_counts["period_is_eligible_for_balancing"]].copy()
-    excluded_windows = period_counts[~period_counts["period_is_eligible_for_balancing"]].copy()
+    eligible_windows = window_counts[window_counts["time_window_is_eligible_for_balancing"]].copy()
+    excluded_windows = window_counts[~window_counts["time_window_is_eligible_for_balancing"]].copy()
 
     if eligible_periods.empty:
         raise ValueError(
@@ -907,8 +907,8 @@ def main() -> None:
         if selected_n <= 0:
             raise ValueError("Balanced sample size is zero; check eligibility thresholds.")
 
-        period_counts["selected_sample_size_for_period"] = period_counts.apply(
-            lambda row: selected_n if row["period_is_eligible_for_balancing"] else 0,
+        window_counts["selected_sample_size_for_period"] = window_counts.apply(
+            lambda row: selected_n if row["time_window_is_eligible_for_balancing"] else 0,
             axis=1,
         )
         print(f"Sampling mode: strict-balanced")
@@ -922,7 +922,7 @@ def main() -> None:
         # threshold. A period with 612 forms keeps all 612; a period with 60,000
         # forms keeps only the top target_n forms. This controls maximum sample
         # size without deleting sparse historical periods.
-        target_n = args.target_wordforms_per_period
+        target_n = args.target_wordforms_per_window
         if target_n is None:
             # Backward-compatible fallback. This should usually not happen because
             # the parser default is 1000.
@@ -935,9 +935,9 @@ def main() -> None:
         if target_n <= 0:
             raise ValueError("--target-wordforms-per-period must be positive.")
 
-        period_counts["selected_sample_size_for_period"] = period_counts.apply(
+        window_counts["selected_sample_size_for_period"] = window_counts.apply(
             lambda row: min(int(row["available_wordforms_before_balancing"]), int(target_n))
-            if row["period_is_eligible_for_balancing"] else 0,
+            if row["time_window_is_eligible_for_balancing"] else 0,
             axis=1,
         )
         print("Sampling mode: cap-preserve-periods")
@@ -946,18 +946,18 @@ def main() -> None:
             "Periods with fewer available word forms than this cap will be kept in full "
             "and flagged as low-N, not discarded."
         )
-        low_n_count = int(period_counts["period_is_low_n_warning"].sum())
+        low_n_count = int(window_counts["time_window_is_low_n_warning"].sum())
         print(f"Periods below --min-period-wordforms warning threshold: {low_n_count:,}")
 
-    print(f"Periods found: {len(period_counts):,}")
+    print(f"Periods found: {len(window_counts):,}")
     print(f"Periods included in TP input: {len(eligible_periods):,}")
     print(f"Periods excluded manually/by token threshold: {len(excluded_periods):,}")
     if not excluded_periods.empty:
         preview_cols = [
-            "period_label",
+            "time_window_label",
             "available_wordforms_before_balancing",
             "total_token_count_represented_before_balancing",
-            "period_exclusion_reason",
+            "time_window_exclusion_reason",
         ]
         print("Excluded-period preview:")
         print(excluded_periods[preview_cols].to_string(index=False, max_rows=20))
@@ -966,25 +966,25 @@ def main() -> None:
     # Select the highest-frequency word forms in each included period.
     # -------------------------------------------------------------------------
     wordforms = wordforms.merge(
-        period_counts[[
-            "period_label",
-            "period_is_eligible_for_balancing",
-            "period_is_low_n_warning",
-            "period_exclusion_reason",
+        window_counts[[
+            "time_window_label",
+            "time_window_is_eligible_for_balancing",
+            "time_window_is_low_n_warning",
+            "time_window_exclusion_reason",
             "sampling_mode",
-            "target_wordforms_per_period",
+            "target_wordforms_per_window",
             "selected_sample_size_for_period",
         ]],
-        on="period_label",
+        on="time_window_label",
         how="left",
     )
-    wordforms_for_sampling = wordforms[wordforms["period_is_eligible_for_balancing"]].copy()
+    wordforms_for_sampling = wordforms[wordforms["time_window_is_eligible_for_balancing"]].copy()
 
     wordforms_for_sampling = wordforms_for_sampling.sort_values(
-        ["period_start", "token_count_in_period", "first_observed_year_in_period", "token", "vowel_seq"],
+        ["time_window_start", "token_count_in_period", "first_observed_year_in_period", "token", "vowel_seq"],
         ascending=[True, False, True, True, True],
     )
-    wordforms_for_sampling["frequency_rank_in_period"] = wordforms_for_sampling.groupby("period_label").cumcount() + 1
+    wordforms_for_sampling["frequency_rank_in_period"] = wordforms_for_sampling.groupby("time_window_label").cumcount() + 1
 
     # Backward-compatible column name used by earlier outputs. In cap-preserve-periods
     # mode this can vary by period; in strict-balanced mode it is constant.
@@ -997,18 +997,18 @@ def main() -> None:
     # -------------------------------------------------------------------------
     # Write the main outputs.
     # -------------------------------------------------------------------------
-    balanced_wordforms_path = args.output_dir / "balanced_period_wordforms.csv"
+    balanced_wordforms_path = args.output_dir / "time_window_wordforms.csv"
     balanced_tokens_path = args.output_dir / "sampled_time_window_original_token_rows.csv"
     period_summary_path = args.output_dir / "time_window_summary.csv"
     excluded_periods_path = args.output_dir / "excluded_time_windows_due_to_low_sample.csv"
     all_period_diagnostics_path = args.output_dir / "all_time_window_diagnostics_before_sampling.csv"
 
     balanced_wordforms.to_csv(balanced_wordforms_path, index=False, encoding="utf-8-sig")
-    period_counts.to_csv(all_period_diagnostics_path, index=False, encoding="utf-8-sig")
+    window_counts.to_csv(all_period_diagnostics_path, index=False, encoding="utf-8-sig")
     excluded_periods.to_csv(excluded_periods_path, index=False, encoding="utf-8-sig")
 
     selected_summary = (
-        balanced_wordforms.groupby(["period_start", "period_end", "period_label"], as_index=False)
+        balanced_wordforms.groupby(["time_window_start", "time_window_end", "time_window_label"], as_index=False)
         .agg(
             selected_wordforms_after_balancing=("wordform_id", "nunique"),
             tokens_in_selected_wordforms=("token_count_in_period", "sum"),
@@ -1016,9 +1016,9 @@ def main() -> None:
             last_selected_year=("last_observed_year_in_period", "max"),
         )
     )
-    period_summary = period_counts.merge(
+    period_summary = window_counts.merge(
         selected_summary,
-        on=["period_start", "period_end", "period_label"],
+        on=["time_window_start", "time_window_end", "time_window_label"],
         how="left",
     )
     period_summary.to_csv(period_summary_path, index=False, encoding="utf-8-sig")
@@ -1031,7 +1031,7 @@ def main() -> None:
     if not args.skip_token_row_output:
         print("Writing original token rows for selected word forms in a second chunked pass...")
         selected_key_set = set(
-            balanced_wordforms["period_label"].astype(str) + "\x1e" + balanced_wordforms["wordform_id"].astype(str)
+            balanced_wordforms["time_window_label"].astype(str) + "\x1e" + balanced_wordforms["wordform_id"].astype(str)
         )
 
         wrote_header = False
@@ -1060,7 +1060,7 @@ def main() -> None:
             )
 
             if not cleaned.empty:
-                cleaned["__selection_key"] = cleaned["period_label"].astype(str) + "\x1e" + cleaned["wordform_id"].astype(str)
+                cleaned["__selection_key"] = cleaned["time_window_label"].astype(str) + "\x1e" + cleaned["wordform_id"].astype(str)
                 selected_rows = cleaned[cleaned["__selection_key"].isin(selected_key_set)].copy()
                 selected_rows = selected_rows.drop(columns=["vowel_seq_list", "__selection_key"], errors="ignore")
 
