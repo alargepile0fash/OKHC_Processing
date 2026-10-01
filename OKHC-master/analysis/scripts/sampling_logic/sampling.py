@@ -74,7 +74,7 @@ def select_wordforms(
     """Select the highest-frequency word forms for each eligible time window."""
     eligible = diagnostics[diagnostics["time_window_is_eligible_for_sampling"]].copy()
     if eligible.empty:
-        raise ValueError("No time windows are eligible for sampling.")
+        raise ValueError("No time windows are eligible for sampling_logic.")
 
     if args.sampling_mode == "strict-balanced":
         selected_n = int(eligible["available_wordforms_before_sampling"].min())

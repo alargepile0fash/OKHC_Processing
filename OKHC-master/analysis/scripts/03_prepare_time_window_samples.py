@@ -14,11 +14,11 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
 
-from sampling.config import parse_args, validate_settings
-from sampling.windows import choose_anchor_year
-from sampling.corpus import count_wordforms
-from sampling.sampling import make_window_diagnostics, select_wordforms
-from sampling.output import write_outputs, write_selected_token_rows, write_run_config
+from sampling_logic.config import parse_args, validate_settings
+from sampling_logic.windows import choose_anchor_year
+from sampling_logic.corpus import count_wordforms
+from sampling_logic.sampling import make_window_diagnostics, select_wordforms
+from sampling_logic.output import write_outputs, write_selected_token_rows, write_run_config
 
 
 def main() -> None:

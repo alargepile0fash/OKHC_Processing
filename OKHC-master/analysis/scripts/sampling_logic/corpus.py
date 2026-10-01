@@ -1,4 +1,4 @@
-"""Prepare the extracted diachronic corpus for sampling."""
+"""Prepare the extracted diachronic corpus for sampling_logic."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def prepare_chunk(chunk: pd.DataFrame, args: argparse.Namespace, anchor_year: in
 
 
 # ---------------------------------------------------------------------------
-# Frequency sampling
+# Frequency sampling_logic
 # ---------------------------------------------------------------------------
 
 

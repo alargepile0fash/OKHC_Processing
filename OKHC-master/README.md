@@ -118,13 +118,13 @@ analysis/config/sampling_100yr_step25.json
 Run it with:
 
 ```bash
-python analysis/processing_scripts/03_prepare_time_window_samples.py --config analysis/config/sampling_100yr_step25.json
+python analysis/scripts/03_prepare_time_window_samples.py --config analysis/config/sampling_100yr_step25.json
 ```
 
 You can also override an individual setting for a quick test:
 
 ```bash
-python analysis/processing_scripts/03_prepare_time_window_samples.py --config analysis/config/sampling_default.json --window-width 100 --window-step 25
+python analysis/scripts/03_prepare_time_window_samples.py --config analysis/config/sampling_default.json --window-width 100 --window-step 25
 ```
 
 The JSON file is the normal place to make experimental changes.

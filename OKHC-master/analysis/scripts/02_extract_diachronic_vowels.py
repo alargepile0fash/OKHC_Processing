@@ -23,9 +23,9 @@ from idu.dictionary_correspondence import (
 # ============================================================
 
 # This script is intended to be located at:
-# OKHC-master/analysis/processing_scripts/02_extract_diachronic_vowels.py
+# OKHC-master/analysis/scripts/02_extract_diachronic_vowels.py
 #
-# parents[0] = processing_scripts
+# parents[0] = scripts
 # parents[1] = analysis
 # parents[2] = OKHC-master
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -81,7 +81,7 @@ LMK_EMK_TRANSITION_END = 1650
 
 # The extractor intentionally does not assign analysis periods.
 # Downstream scripts construct configurable time-window samples from the raw year
-# column so temporal sampling remains a separate, reproducible analysis step.
+# column so temporal sampling_logic remains a separate, reproducible analysis step.
 
 # ============================================================
 # TOKENIZATION
