@@ -237,7 +237,7 @@ The alternative is:
 "sampling_mode": "strict-balanced"
 ```
 
-This excludes windows below `min_window_wordforms` and gives the remaining windows the same sample size, based on the smallest eligible window (optionally capped by `max_wordforms_per_window`).
+This excludes windows below `min_window_wordforms` and gives the remaining windows the same sample size, based on the smallest eligible window. `max_wordforms_per_window`, when set, is a hard upper bound in either sampling mode.
 
 ### Output
 
