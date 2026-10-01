@@ -1,6 +1,7 @@
 import csv
 import gzip
 import json
+import os
 import sys
 import unicodedata as ud
 from pathlib import Path
@@ -40,10 +41,14 @@ from idu.dictionary_correspondence import (
 # ============================================================
 
 # This reads the PROCESSED corpus files created by 01_preprocess_corpus.py.
-INPUT_DIR = REPO_ROOT / "analysis" / "data"
+INPUT_DIR = Path(
+    os.environ.get("OKHC_EXTRACT_INPUT", REPO_ROOT / "analysis" / "data")
+)
 
 # This is where analysis-ready output files go.
-OUTPUT_DIR = REPO_ROOT / "analysis" / "data"
+OUTPUT_DIR = Path(
+    os.environ.get("OKHC_EXTRACT_OUTPUT", REPO_ROOT / "analysis" / "data")
+)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 OUTPUT_FILE = OUTPUT_DIR / "hangul_vowel_tokens_diachronic.csv"
