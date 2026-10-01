@@ -80,8 +80,12 @@ def count_wordforms(input_csv: Path, args: argparse.Namespace, anchor_year: int)
             continue
 
         group_columns = [
-            "time_window_start", "time_window_end", "time_window_id",
-            "time_window_id", "wordform_id", args.token_col, "vowel_seq"
+            "time_window_start",
+            "time_window_end",
+            "time_window_id",
+            "wordform_id",
+            args.token_col,
+            "vowel_seq",
         ]
         groups.append(
             prepared.groupby(group_columns, dropna=False).agg(
