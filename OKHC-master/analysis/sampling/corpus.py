@@ -102,7 +102,7 @@ def count_wordforms(input_csv: Path, args: argparse.Namespace, anchor_year: int)
 
     group_columns = [
         "time_window_start", "time_window_end", "time_window_id",
-        "time_window_id", "wordform_id", args.token_col, "vowel_seq"
+        "wordform_id", args.token_col, "vowel_seq"
     ]
     return (
         pd.concat(groups, ignore_index=True)
