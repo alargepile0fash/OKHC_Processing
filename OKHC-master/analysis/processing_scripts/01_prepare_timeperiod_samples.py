@@ -602,6 +602,7 @@ def write_variable_descriptions(output_dir: Path) -> None:
         ("time_window_start", "First calendar year included in the configured time window. If --start-year was supplied, no rows earlier than that year are retained."),
         ("time_window_end", "Last calendar year included in the configured time window."),
         ("time_window_label", "Human-readable label for the configured time window, e.g. 1425-1449."),
+        ("time_window_id", "Stable identifier for the time window. Currently identical to time_window_label so later analyses can group by one schema regardless of temporal design."),
         ("wordform_id", "Unique identifier for a time window-specific word form: token plus normalized vowel sequence."),
         ("token", "Orthographic word form from the original corpus."),
         ("vowel_seq", "Normalized vowel sequence, separated by spaces."),
@@ -623,11 +624,14 @@ def write_variable_descriptions(output_dir: Path) -> None:
         ("min_window_wordforms_for_warning", "Threshold supplied by --min-window-wordforms. In cap-preserve-windows mode this is used as a low-N warning threshold; in strict-balanced mode it is an exclusion threshold."),
         ("min_window_tokens", "Threshold supplied by --min-window-tokens."),
         ("max_wordforms_per_window", "Optional cap supplied by --max-wordforms-per-window; blank means no cap."),
-        ("selected_wordforms_after_balancing", "Number of word forms retained after balancing; should equal balanced_sample_size_per_time window."),
+        ("selected_wordforms_after_balancing", "Number of word forms retained after sampling in this time window."),
         ("total_token_count_represented_before_balancing", "Total corpus token count represented by all usable word forms before balancing."),
         ("tokens_in_selected_wordforms", "Original token occurrences represented by the selected high-frequency word forms."),
         ("first_selected_year", "Earliest observed year among selected word forms in the time window."),
         ("last_selected_year", "Latest observed year among selected word forms in the time window."),
+        ("window_width_years", "Width of every configured time window in years."),
+        ("window_step_years", "Distance between successive time-window starts in years."),
+        ("window_overlap_years", "Nominal overlap between adjacent windows: max(width - step, 0)."),
     ]
     out = pd.DataFrame(descriptions, columns=["variable", "description"])
     out.to_csv(output_dir / "01_time_window_sample_variable_descriptions.csv", index=False, encoding="utf-8-sig")
