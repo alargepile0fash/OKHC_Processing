@@ -2,38 +2,93 @@
 
 This repository contains preprocessing and analysis code for the Open Korean Historical Corpus.
 
-## Diachronic vowel-harmony analysis
+## Pipeline
 
-The historical vowel-analysis pipeline is divided into three stages:
+The project has three processing stages before the phonological analysis:
 
-```text
-processed OKHC corpus
-        |
-        v
+```
+raw OKHC JSONL
+     |
+     v
+run_preprocessing_portable.py
+     |
+     v
+processed/classified OKHC JSONL
+     |
+     v
 extract_diachronic_hangul_vowels_with_idu_integrated.py
-        |
-        v
+     |
+     v
 hangul_vowel_tokens_diachronic.csv
-        |
-        v
+     |
+     v
 01_prepare_timeperiod_samples.py
-        |
-        v
-sampled time-window word forms
-        |
-        v
+     |
+     v
+historical time-window samples
+     |
+     v
 TP / D2L analysis
 ```
 
-The extractor prepares the token-level data. The sampler controls the historical sampling design. The later phonological analysis should not change that sample.
+### 1. Corpus preprocessing
 
-### Time-window configuration
+`run_preprocessing_portable.py` is the entry point for the first stage. It reads the raw OKHC JSONL files in chunks, then calls the existing preprocessing and classification modules:
 
-The sampler is controlled by a JSON file rather than by settings buried in the Python script.
+```
+preprocessing/text_preprocessing.py
+preprocessing/classification_logic.py
+```
+
+Those modules perform text normalization, language/script metadata, and corpus-specific classification. The runner handles file discovery, chunking, and output. It is therefore an important part of the pipeline, not just a convenience script.
+
+The Idu classifier in `idu/idu_classifier.py` is a separate corpus component. It is not called by the diachronic vowel extractor because the extractor needs Idu dictionary-to-Hangul correspondences, rather than only document-level Idu/Chinese classification.
+
+### 2. Diachronic vowel extraction
+
+`extract_diachronic_hangul_vowels_with_idu_integrated.py` reads the processed JSONL files and creates the standardized token-level CSV used by the historical analysis.
+
+It does four main things:
+
+1. extracts Hangul tokens and their vowel sequences;
+2. records historical/event metadata;
+3. adds Idu dictionary-derived Hangul readings when enabled;
+4. writes one analysis-ready row per usable token/reading.
+
+It deliberately does **not** assign analytical time periods. The raw `year` remains the temporal information used by the sampling stage.
+
+### 3. Time-window sampling
+
+`01_prepare_timeperiod_samples.py` is the entry point for the sampling stage. The script itself is intentionally small. Its supporting code lives in:
+
+```
+analysis/sampling/
+├── config.py       # read and validate settings
+├── windows.py      # construct historical windows
+├── corpus.py       # prepare and count corpus word forms
+├── sampling.py     # decide which word forms enter the sample
+└── output.py       # write results and run metadata
+```
+
+The main script therefore reads almost like the research procedure:
+
+```
+load settings
+     |
+prepare corpus word forms
+     |
+construct time windows
+     |
+select frequency sample
+     |
+save results
+```
+
+The sampler is controlled by a JSON file rather than settings buried in the Python code.
 
 Default configuration:
 
-```text
+```
 analysis/config/sampling_default.json
 ```
 
@@ -56,42 +111,23 @@ They are independent:
 
 For example, the repository includes:
 
-```text
+```
 analysis/config/sampling_100yr_step25.json
 ```
 
-To use it:
+Run it with:
 
 ```bash
-python analysis/processing_scripts/01_prepare_timeperiod_samples.py \
-    --config analysis/config/sampling_100yr_step25.json
+python analysis/processing_scripts/01_prepare_timeperiod_samples.py --config analysis/config/sampling_100yr_step25.json
 ```
 
-You can also override an individual setting from the command line. For example:
+You can also override an individual setting for a quick test:
 
 ```bash
-python analysis/processing_scripts/01_prepare_timeperiod_samples.py \
-    --config analysis/config/sampling_default.json \
-    --window-width 100 \
-    --window-step 25
+python analysis/processing_scripts/01_prepare_timeperiod_samples.py --config analysis/config/sampling_default.json --window-width 100 --window-step 25
 ```
 
-The JSON file is therefore the normal place to make experimental changes. The command line is useful for quick tests.
-
-### What the sampler does
-
-`01_prepare_timeperiod_samples.py` has a deliberately small set of responsibilities:
-
-1. **`load_config()` / `parse_args()`** — read the JSON settings and optional command-line overrides.
-2. **`choose_anchor_year()` / `windows_for_year()`** — define the historical windows.
-3. **`extract_vowels()` / `prepare_chunk()`** — clean the token data and assign tokens to windows.
-4. **`count_wordforms()`** — count word forms within each window.
-5. **`make_window_diagnostics()`** — determine which windows are eligible and record sample-size information.
-6. **`select_wordforms()`** — select the highest-frequency word forms.
-7. **`write_outputs()` / `write_selected_token_rows()`** — save the analysis sample and optional audit rows.
-8. **`write_run_config()`** — save the exact settings used for the run beside the output.
-
-This means that if you want to change the historical design, you normally only need to edit the JSON file. If you want to understand how windows are constructed, `windows_for_year()` is the relevant function. If you want to understand how the frequency sample is chosen, `select_wordforms()` is the relevant function.
+The JSON file is the normal place to make experimental changes.
 
 ### Sampling modes
 
@@ -101,13 +137,13 @@ The default mode is:
 "sampling_mode": "cap-preserve-windows"
 ```
 
-This keeps every eligible time window and selects up to:
+This keeps eligible windows and selects up to:
 
 ```json
 "target_wordforms_per_window": 1000
 ```
 
-The highest-frequency word forms in that window. A sparse window can therefore contain fewer than 1,000 forms rather than disappearing from the historical sequence.
+of the highest-frequency word forms in each window. Sparse windows can therefore contain fewer than 1,000 forms rather than automatically disappearing.
 
 The alternative is:
 
@@ -115,13 +151,13 @@ The alternative is:
 "sampling_mode": "strict-balanced"
 ```
 
-This excludes windows below `min_window_wordforms` and gives every remaining window the same sample size, based on the smallest eligible window (optionally capped by `max_wordforms_per_window`).
+This excludes windows below `min_window_wordforms` and gives the remaining windows the same sample size, based on the smallest eligible window (optionally capped by `max_wordforms_per_window`).
 
 ### Output
 
-The sampler writes to the directory specified by `output_dir` in the configuration file. The main files are:
+The sampler writes these main files to the configured output directory:
 
-```text
+```
 sampled_time_window_wordforms.csv
 all_time_window_diagnostics_before_sampling.csv
 excluded_time_windows_due_to_low_sample.csv
@@ -130,12 +166,12 @@ sampled_time_window_original_token_rows.csv
 sampling_config.json
 ```
 
-`sampled_time_window_wordforms.csv` is the main input for later phonological analysis. Each row belongs to a specific `time_window_id`.
+`sampled_time_window_wordforms.csv` is the main input for later phonological analysis. `sampling_config.json` records the settings actually used for the run.
 
-`sampling_config.json` records the settings actually used, so an output can always be traced back to its sampling design.
-
-When `window_step < window_width`, neighboring windows overlap in their corpus observations. Those windows are therefore useful as overlapping temporal views, but should not be treated as statistically independent samples.
+When `window_step < window_width`, neighboring windows overlap in their corpus observations. They should therefore be treated as overlapping temporal views rather than statistically independent samples.
 
 ### D2L boundary
 
-The sampler does not construct UR/SR pairs and does not run D2L. The intended D2L implementation is Caleb Belth's pre-tested implementation in `algophon`. Once the historical UR/SR representation is defined, D2L should be run separately for each `time_window_id` using the already-selected sample.
+The sampling pipeline does not construct UR/SR pairs and does not implement D2L. The intended D2L implementation is Caleb Belth's implementation in `algophon`. Once the historical UR/SR representation is defined, D2L should be run separately for each `time_window_id` using the selected sample.
+
+Generated analysis outputs are not part of the source pipeline and should not be committed as project code or test data unless they are deliberately being used as fixtures.
