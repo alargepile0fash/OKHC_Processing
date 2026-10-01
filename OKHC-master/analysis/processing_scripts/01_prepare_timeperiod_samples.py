@@ -998,7 +998,7 @@ def main() -> None:
 
     # Backward-compatible column name used by earlier outputs. In cap-preserve-windows
     # mode this can vary by time window; in strict-balanced mode it is constant.
-    wordforms_for_sampling["balanced_sample_size_per_time window"] = wordforms_for_sampling["selected_sample_size_for_window"]
+    wordforms_for_sampling["sample_size_per_time_window"] = wordforms_for_sampling["selected_sample_size_for_window"]
 
     balanced_wordforms = wordforms_for_sampling[
         wordforms_for_sampling["frequency_rank_in_window"] <= wordforms_for_sampling["selected_sample_size_for_window"]
@@ -1026,12 +1026,12 @@ def main() -> None:
             last_selected_year=("last_observed_year_in_window", "max"),
         )
     )
-    time window_summary = window_counts.merge(
+    time_window_summary = window_counts.merge(
         selected_summary,
         on=["time_window_start", "time_window_end", "time_window_label", "time_window_id"],
         how="left",
     )
-    time window_summary.to_csv(time_window_summary_path, index=False, encoding="utf-8-sig")
+    time_window_summary.to_csv(time_window_summary_path, index=False, encoding="utf-8-sig")
 
     # -------------------------------------------------------------------------
     # Optional second pass: preserve original token rows belonging to selected word forms.
