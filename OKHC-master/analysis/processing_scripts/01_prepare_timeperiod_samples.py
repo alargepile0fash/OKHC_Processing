@@ -845,6 +845,9 @@ def main() -> None:
     )
 
     manually_excluded_windows = set(str(p) for p in args.exclude_windows)
+    window_counts["window_width_years"] = args.window_width
+    window_counts["window_step_years"] = args.window_step
+    window_counts["window_overlap_years"] = max(0, args.window_width - args.window_step)
     window_counts["sampling_mode"] = args.sampling_mode
     window_counts["min_window_wordforms_for_warning"] = args.min_window_wordforms
     window_counts["min_window_tokens"] = args.min_window_tokens
