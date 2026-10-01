@@ -18,7 +18,7 @@ def parse_vowel_sequence(value: object) -> list[str]:
 
 
 def prepare_chunk(chunk: pd.DataFrame, args: argparse.Namespace, anchor_year: int) -> pd.DataFrame:
-    """Clean a corpus chunk and assign each row to its time window(s)."""
+    """Clean a corpus chunk, exclude out-of-range vowel counts, and assign windows."""
     chunk = chunk.copy()
     chunk[args.year_col] = pd.to_numeric(chunk[args.year_col], errors="coerce")
     chunk = chunk.dropna(subset=[args.year_col, args.token_col, args.vowels_col])
@@ -35,6 +35,8 @@ def prepare_chunk(chunk: pd.DataFrame, args: argparse.Namespace, anchor_year: in
     chunk["vowel_seq_list"] = chunk[args.vowels_col].apply(parse_vowel_sequence)
     chunk["num_vowels_normalized"] = chunk["vowel_seq_list"].str.len()
     chunk = chunk[chunk["num_vowels_normalized"] >= args.min_word_vowels]
+    if args.max_word_vowels is not None:
+        chunk = chunk[chunk["num_vowels_normalized"] <= args.max_word_vowels]
     if chunk.empty:
         return chunk
 
