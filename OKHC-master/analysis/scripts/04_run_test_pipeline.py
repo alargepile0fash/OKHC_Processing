@@ -154,6 +154,33 @@ def main() -> None:
     print("PASS: backward-compatible expanded harmony columns are present.")
 
 
+    # The sampling stage should preserve the extraction-stage harmony columns.
+    missing_sampled_harmony_columns = required_harmony_columns - set(sampled.columns)
+    if missing_sampled_harmony_columns:
+        raise AssertionError(
+            "Sampled output is missing harmony classification columns: "
+            f"{sorted(missing_sampled_harmony_columns)}"
+        )
+    print("PASS: sampled output preserves all core and expanded harmony columns.")
+
+    # Idu-derived dictionary readings are excluded from the analytical extraction
+    # dataset when the extraction config enables that exclusion.
+    if extraction_config["exclude_idu_derived_wordforms"]:
+        if "token_source" not in extracted.columns:
+            raise AssertionError(
+                "Cannot verify Idu exclusion: extraction output is missing token_source."
+            )
+        idu_rows = int(
+            (extracted["token_source"] == "idu_dictionary_hangul_correspondence").sum()
+        )
+        if idu_rows != 0:
+            raise AssertionError(
+                "Idu-derived wordforms were expected to be excluded, but "
+                f"{idu_rows:,} rows remain in the extraction output."
+            )
+        print("PASS: no Idu-derived wordforms remain in the extraction output.")
+
+
     expected_max = sampling_config["max_word_vowels"]
     if expected_max is None:
         raise ValueError("The test sampling config must set max_word_vowels.")
