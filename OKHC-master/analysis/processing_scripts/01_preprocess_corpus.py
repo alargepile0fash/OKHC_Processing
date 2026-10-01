@@ -48,18 +48,11 @@ def ensure_required_columns(df: pd.DataFrame) -> pd.DataFrame:
     defaults = {
         "id": None,
         "text": "",
-        "content": None,
         "year": None,
         "language": None,
         "script": None,
         "source": None,
         "corpus": None,
-        "copyright": None,
-        "url": None,
-        "format": None,
-        "metadata": None,
-        "analytics": None,
-        "translation": None,
     }
     for column, default in defaults.items():
         if column not in df.columns:
