@@ -122,7 +122,7 @@ CHUNKSIZE = 250_000
 MIN_WINDOW_WORDFORMS_FOR_WARNING = 1_000
 
 # Default maximum number of highest-frequency word forms to keep per time window in
-# cap-preserve-windows mode. Periods with fewer than this many forms are kept in full
+# cap-preserve-windows mode. Time windows with fewer than this many forms are kept in full
 # and flagged as low-N rather than discarded.
 TARGET_WORDFORMS_PER_WINDOW = 1_000
 
@@ -370,7 +370,7 @@ def parse_args() -> argparse.Namespace:
         default=TARGET_WORDFORMS_PER_WINDOW,
         help=(
             "Maximum number of highest-frequency word forms to keep per time window in "
-            "cap-preserve-windows mode. Periods with fewer forms are kept in full and "
+            "cap-preserve-windows mode. Time windows with fewer forms are kept in full and "
             "flagged as low-N rather than discarded. Default: 1000."
         ),
     )
@@ -379,7 +379,7 @@ def parse_args() -> argparse.Namespace:
         nargs="*",
         default=[],
         help=(
-            "Optional explicit time window labels to exclude from the balanced TP sample, "
+            "Optional explicit time_window_labels to exclude from the balanced TP sample, "
             "e.g. --exclude-windows 1375-1399 1900-1924. They remain in diagnostics."
         ),
     )
@@ -515,7 +515,7 @@ def clean_and_annotate_chunk(
     chunk[year_col] = chunk[year_col].astype(int)
 
     # Important: when --start-year is supplied, it should not merely anchor the
-    # time window labels. It should also act as the lower bound of the analysis window.
+    # time_window_labels. It should also act as the lower bound of the analysis window.
     # Otherwise, a small pre-start edge time window such as 1375-1399 could be retained
     # and accidentally determine the balanced sample size.
     if min_analysis_year is not None:
@@ -840,7 +840,7 @@ def main() -> None:
         .sort_values("time_window_start")
     )
 
-    manually_excluded_windows_windows = set(str(p) for p in args.exclude_windows)
+    manually_excluded_windows = set(str(p) for p in args.exclude_windows)
     window_counts["sampling_mode"] = args.sampling_mode
     window_counts["min_window_wordforms_for_warning"] = args.min_window_wordforms
     window_counts["min_window_tokens"] = args.min_window_tokens
@@ -946,15 +946,15 @@ def main() -> None:
         print("Sampling mode: cap-preserve-windows")
         print(f"Target/cap per time window: {int(target_n):,} highest-frequency word forms.")
         print(
-            "Periods with fewer available word forms than this cap will be kept in full "
+            "Time windows with fewer available word forms than this cap will be kept in full "
             "and flagged as low-N, not discarded."
         )
         low_n_count = int(window_counts["time_window_is_low_n_warning"].sum())
-        print(f"Periods below --min-window-wordforms warning threshold: {low_n_count:,}")
+        print(f"Time windows below --min-window-wordforms warning threshold: {low_n_count:,}")
 
-    print(f"Periods found: {len(window_counts):,}")
-    print(f"Periods included in TP input: {len(eligible_windows):,}")
-    print(f"Periods excluded manually/by token threshold: {len(excluded_windows):,}")
+    print(f"Time windows found: {len(window_counts):,}")
+    print(f"Time windows included in TP input: {len(eligible_windows):,}")
+    print(f"Time windows excluded manually/by token threshold: {len(excluded_windows):,}")
     if not excluded_windows.empty:
         preview_cols = [
             "time_window_label",
@@ -1105,7 +1105,7 @@ def main() -> None:
     print(f"  4. {all_time_window_diagnostics_path}")
     print("     Diagnostics for every configured time window before balancing, including sparse time windows.")
     print(f"  5. {excluded_windows_path}")
-    print("     Periods excluded from the TP input. In cap-preserve-windows mode, this is usually empty unless time windows were manually excluded or failed the token threshold.")
+    print("     Time windows excluded from the TP input. In cap-preserve-windows mode, this is usually empty unless time windows were manually excluded or failed the token threshold.")
     print(f"  6. {args.output_dir / '01_balanced_sample_variable_descriptions.csv'}")
     print("     Variable descriptions for the balancing outputs.")
 
