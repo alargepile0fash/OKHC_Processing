@@ -262,24 +262,57 @@ def main() -> None:
     print("PASS: sampled output preserves all core and expanded harmony columns.")
 
     # Verify that sampling preserved the actual classification values, not
-    # merely the column names.
-    extraction_lookup = (
-        extracted[["token", "vowels", "vowel_classes_core", "harmony_status_core",
-                   "vowel_classes_expanded", "harmony_status_expanded"]]
-        .drop_duplicates()
+    # merely the column names. The extraction stage stores the vowel sequence
+    # in the comma-separated `vowels` column, while sampling stores the same
+    # sequence as whitespace-separated `vowel_seq`.
+    extraction_lookup = extracted[
+        ["token", "vowels", "vowel_classes_core", "harmony_status_core",
+         "vowel_classes_expanded", "harmony_status_expanded"]
+    ].copy()
+    extraction_lookup["vowel_seq"] = extraction_lookup["vowels"].apply(
+        lambda value: " ".join(
+            vowel.strip()
+            for vowel in str(value).split(",")
+            if vowel.strip()
+        )
     )
+    extraction_lookup = extraction_lookup.drop(
+        columns=["vowels"]
+    ).drop_duplicates(
+        subset=[
+            "token",
+            "vowel_seq",
+        ]
+    )
+
     sampled_check = sampled.merge(
         extraction_lookup,
-        on=["token", "vowels", "vowel_classes_core", "harmony_status_core",
-            "vowel_classes_expanded", "harmony_status_expanded"],
+        on=["token", "vowel_seq"],
         how="left",
+        suffixes=("", "_extracted"),
         indicator=True,
     )
     if (sampled_check["_merge"] != "both").any():
         raise AssertionError(
-            "Sampled harmony classification values do not match the extraction-stage "
-            "classifications for one or more sampled wordforms."
+            "Sampled wordforms could not be matched to the extraction-stage "
+            "vowel sequences."
         )
+
+    for column in (
+        "vowel_classes_core",
+        "harmony_status_core",
+        "vowel_classes_expanded",
+        "harmony_status_expanded",
+    ):
+        extracted_column = f"{column}_extracted"
+        mismatches = sampled_check[column].fillna("<MISSING") != sampled_check[
+            extracted_column
+        ].fillna("<MISSING")
+        if mismatches.any():
+            raise AssertionError(
+                f"Sampled {column} values do not match the extraction-stage "
+                f"classifications for {int(mismatches.sum())} wordforms."
+            )
     print("PASS: sampled harmony classification values match extraction output.")
 
     # Idu-derived dictionary readings are excluded from the analytical extraction
