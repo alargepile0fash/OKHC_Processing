@@ -95,6 +95,34 @@ def test_harmony_classification() -> None:
     print("PASS: core and nucleus-based expanded harmony classifications behave as expected.")
 
 
+def test_idu_match_offsets() -> None:
+    """Verify Idu matching preserves offsets in the original Unicode text."""
+    from idu.dictionary_correspondence import (
+        build_idu_trie,
+        find_nonoverlapping_longest_idu_matches,
+    )
+
+    trie = build_idu_trie({
+        "A": [{"sequence": 1, "hangul_text": "가"}],
+        "AB": [{"sequence": 2, "hangul_text": "나다"}],
+    })
+    matches = find_nonoverlapping_longest_idu_matches("xＡB y", trie)
+
+    if len(matches) != 1:
+        raise AssertionError(
+            f"Idu offset test expected one longest match, got {len(matches)}."
+        )
+
+    match = matches[0]
+    if match["start"] != 1 or match["end"] != 3 or match["match_text"] != "AB":
+        raise AssertionError(
+            "Idu offset test failed: normalized matching did not preserve "
+            "the original-text span."
+        )
+
+    print("PASS: normalized Idu matching preserves original-text offsets.")
+
+
 def test_sampling_max_word_vowels() -> None:
     """Exercise the upper word-vowel bound with a deterministic synthetic chunk."""
     from argparse import Namespace
@@ -127,6 +155,7 @@ def test_sampling_max_word_vowels() -> None:
 
 def main() -> None:
     test_harmony_classification()
+    test_idu_match_offsets()
     test_sampling_max_word_vowels()
     config = load_config(parse_args().config)
 
