@@ -48,3 +48,43 @@ This repository contains the code used for preprocessing, language and script id
   year    = {2025}
 }
 ```
+
+
+## Diachronic vowel-harmony analysis
+
+The historical vowel-analysis pipeline is deliberately separated into preprocessing, time-period sampling, and phonological analysis.
+
+### Current analysis flow
+
+    processed OKHC corpus
+            |
+            v
+    extract_diachronic_hangul_vowels_with_idu_integrated.py
+            |
+            |  raw year + raw normalized vowel identities + provenance
+            v
+    hangul_vowel_tokens_diachronic.csv
+            |
+            v
+    01_prepare_timeperiod_samples.py
+            |
+            |  25-year periods; frequency-based word-form sampling
+            v
+    analysis/data/timeperiod_samples/
+            |
+            v
+    later phonological analysis (TP/D2L)
+
+The extractor **does not assign analysis periods**. Earlier versions emitted a legacy 50-year `period_50yr` column; that column has been removed so there is one authoritative periodization step.
+
+The sampling unit is a **period-specific word form**: orthographic token plus its normalized vowel sequence. Each 25-year period therefore has its own sample of available corpus word forms. The default `cap-preserve-periods` mode keeps every period after the optional start-year cutoff and caps the number of selected word forms at 1,000 per period; sparse periods are retained and flagged rather than silently removed.
+
+The extractor retains the actual vowel symbols. The `+RTR`, `-RTR`, and neutral classifications are analytical labels, not replacements for the underlying vowel identities.
+
+Idu-derived observations are explicitly labeled with `token_source` and the period-sampling output aggregates that provenance into `token_sources_present` and `contains_idu_derived_observation`. This makes it possible to run source-sensitivity analyses without making provenance part of the sampling unit.
+
+### D2L input boundary
+
+`algophon` is the intended implementation for D2L. The period-sampling output is **not itself a D2L training file**. Belth's D2L implementation learns from UR/SR pairs of equal length, so a historically defensible mapping from observed historical forms to UR/SR representations must be established before a D2L runner is added. The pipeline therefore does not invent URs from surface vowel sequences merely to satisfy the library API.
+
+Once that representation is defined, D2L should be run independently for each 25-year period using the already-selected sample, rather than changing the sample while testing different phonological conditions.
