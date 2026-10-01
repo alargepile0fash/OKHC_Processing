@@ -29,6 +29,16 @@ def parse_args() -> argparse.Namespace:
 
     settings = load_config(config_path)
 
+    required = {"runs_dir", "run_name"}
+    missing = required - settings.keys()
+    if missing:
+        raise ValueError(
+            f"Missing sampling run config keys: {sorted(missing)}"
+        )
+
+    output_dir = Path(settings["runs_dir"]) / settings["run_name"]
+    settings["output_dir"] = str(output_dir)
+
     parser = argparse.ArgumentParser(
         description="Prepare the historical Korean word-form sample for phonological analysis."
     )
@@ -76,4 +86,3 @@ def validate_settings(args: argparse.Namespace) -> None:
         raise ValueError("minimum sample thresholds cannot be negative.")
     if args.max_wordforms_per_window is not None and args.max_wordforms_per_window <= 0:
         raise ValueError("max_wordforms_per_window must be positive when provided.")
-
