@@ -14,7 +14,7 @@ def parse_vowel_sequence(value: object) -> list[str]:
     """Read the standardized comma-separated vowel sequence from the extractor."""
     if pd.isna(value):
         return []
-    return [vowel for vowel in str(value).split(",") if vowel]
+    return [vowel.strip() for vowel in str(value).split(",") if vowel.strip()]
 
 
 def prepare_chunk(chunk: pd.DataFrame, args: argparse.Namespace, anchor_year: int) -> pd.DataFrame:
