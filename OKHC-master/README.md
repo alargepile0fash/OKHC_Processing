@@ -47,10 +47,11 @@ analysis/config/
 └── test_pipeline.json
 ```
 
-The production configurations control normal input/output locations, chunking,
+The production configurations control normal input locations, chunking,
 extraction filters, historical event boundaries, Idu extraction options, and
-sampling design. The test configurations point the same processing logic at
-the small test fixture.
+sampling design. Sampling runs also have a named output directory, so separate
+experimental configurations can preserve their results independently. The test
+configurations point the same processing logic at the small test fixture.
 
 For the production pipeline, run each stage with its corresponding
 configuration:
@@ -77,7 +78,8 @@ python analysis/scripts/04_run_test_pipeline.py
 
 The test runner reads `analysis/config/test_pipeline.json`, which selects the
 preprocessing, extraction, and sampling test configurations. Generated test
-output stays under `analysis/tests/output/`.
+output stays under `analysis/tests/output/`; the sampling results are placed
+in the named `sampling` run directory beneath it.
 
 ### 1. Corpus preprocessing
 
@@ -139,6 +141,29 @@ Default configuration:
 ```
 analysis/config/sampling_default.json
 ```
+
+Each sampling configuration has two run-specific settings:
+
+```json
+"runs_dir": "analysis/data/runs",
+"run_name": "25yr_step25"
+```
+
+The sampler combines these into the actual output directory:
+
+```
+analysis/data/runs/25yr_step25/
+```
+
+This means changing the sampling design does not require reusing the same output
+directory. To create another analysis run, copy the configuration, change the
+settings you want to test, and give it a different run name, such as
+`50yr_step25`. The resulting outputs are written to
+`analysis/data/runs/50yr_step25/`.
+
+The run directory contains both the analysis outputs and the generated
+`sampling_config.json`, which records the exact settings used for that run.
+
 
 The two most important settings are:
 
@@ -203,7 +228,7 @@ This excludes windows below `min_window_wordforms` and gives the remaining windo
 
 ### Output
 
-The sampler writes these main files to the configured output directory:
+The sampler writes these main files to the run-specific output directory:
 
 ```
 sampled_time_window_wordforms.csv
