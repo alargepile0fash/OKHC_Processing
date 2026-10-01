@@ -12,6 +12,7 @@ import regex as re
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 IDU_RESOURCE_CANDIDATE_DIRS = [
+    REPO_ROOT / "analysis" / "processing_scripts" / "resources",
     REPO_ROOT / "idu" / "resources",
     REPO_ROOT / "preprocessing" / "resources",
     REPO_ROOT / "analysis" / "resources",
