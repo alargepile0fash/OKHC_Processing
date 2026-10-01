@@ -18,5 +18,6 @@
   "idu_dictionary_hangul_correspondences": true,
   "emit_idu_general_exclusion_matches": false,
   "emit_idu_noun_exclusion_matches": true,
-  "emit_all_idu_reading_variants": true
+  "emit_all_idu_reading_variants": true,
+  "exclude_idu_derived_wordforms": true
 }
