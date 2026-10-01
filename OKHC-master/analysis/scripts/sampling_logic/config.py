@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG = PROJECT_ROOT / "analysis" / "config" / "sampling_default.json"
 
 
@@ -46,7 +46,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-window-wordforms", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--min-window-tokens", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--max-wordforms-per-window", type=int, default=argparse.SUPPRESS)
-    parser.add_argument("--sampling_logic-mode", choices=["cap-preserve-windows", "strict-balanced"], default=argparse.SUPPRESS)
+    parser.add_argument(
+        "--sampling-mode",
+        choices=["cap-preserve-windows", "strict-balanced"],
+        default=argparse.SUPPRESS,
+    )
     parser.add_argument("--target-wordforms-per-window", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--exclude-windows", nargs="*", default=argparse.SUPPRESS)
     parser.add_argument("--skip-token-row-output", action="store_true", default=argparse.SUPPRESS)
