@@ -67,7 +67,16 @@ def prepare_chunk(chunk: pd.DataFrame, args: argparse.Namespace, anchor_year: in
 
 def count_wordforms(input_csv: Path, args: argparse.Namespace, anchor_year: int) -> pd.DataFrame:
     """Count each word form within each time window."""
-    columns = [args.year_col, args.token_col, args.vowels_col, "token_source"]
+    columns = [
+        args.year_col,
+        args.token_col,
+        args.vowels_col,
+        "token_source",
+        "vowel_classes_core",
+        "harmony_status_core",
+        "vowel_classes_expanded",
+        "harmony_status_expanded",
+    ]
     groups = []
 
     for chunk in pd.read_csv(
@@ -100,6 +109,10 @@ def count_wordforms(input_csv: Path, args: argparse.Namespace, anchor_year: int)
                     "token_source",
                     lambda values: any("idu" in str(value).lower() for value in values),
                 ),
+                vowel_classes_core=("vowel_classes_core", "first"),
+                harmony_status_core=("harmony_status_core", "first"),
+                vowel_classes_expanded=("vowel_classes_expanded", "first"),
+                harmony_status_expanded=("harmony_status_expanded", "first"),
             ).reset_index()
         )
 
@@ -123,6 +136,10 @@ def count_wordforms(input_csv: Path, args: argparse.Namespace, anchor_year: int)
                 lambda values: "|".join(sorted(set("|".join(values).split("|")))),
             ),
             contains_idu_derived_observation=("contains_idu_derived_observation", "max"),
+            vowel_classes_core=("vowel_classes_core", "first"),
+            harmony_status_core=("harmony_status_core", "first"),
+            vowel_classes_expanded=("vowel_classes_expanded", "first"),
+            harmony_status_expanded=("harmony_status_expanded", "first"),
         )
         .reset_index()
     )
