@@ -8,6 +8,15 @@ from pathlib import Path
 import regex as re
 from tqdm import tqdm
 
+from idu.dictionary_correspondence import (
+    ENABLE_IDU_DICTIONARY_HANGUL_CORRESPONDENCES,
+    EMIT_ALL_IDU_READING_VARIANTS,
+    build_idu_trie,
+    find_nonoverlapping_longest_idu_matches,
+    load_idu_resources,
+    split_idu_hangul_readings,
+)
+
 
 # ============================================================
 # PROJECT PATHS
@@ -242,18 +251,6 @@ def arae_flags(vowels: list[str]) -> dict:
         "has_any_arae_related": has_any_arae_related,
     }
 
-
-# ============================================================
-# IDU dictionary correspondences are handled in idu/dictionary_correspondence.py.
-
-from idu.dictionary_correspondence import (
-    ENABLE_IDU_DICTIONARY_HANGUL_CORRESPONDENCES,
-    EMIT_ALL_IDU_READING_VARIANTS,
-    build_idu_trie,
-    find_nonoverlapping_longest_idu_matches,
-    load_idu_resources,
-    split_idu_hangul_readings,
-)
 
 # FILE HANDLING
 # ============================================================
