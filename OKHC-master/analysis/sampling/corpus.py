@@ -93,10 +93,10 @@ def prepare_chunk(chunk: pd.DataFrame, args: argparse.Namespace, anchor_year: in
     )
     chunk["time_window_start"] = chunk["time_window_start"].astype(int)
     chunk["time_window_end"] = chunk["time_window_end"].astype(int)
-    chunk["time_window_label"] = (
+    chunk["time_window_id"] = (
         chunk["time_window_start"].astype(str) + "-" + chunk["time_window_end"].astype(str)
     )
-    chunk["time_window_id"] = chunk["time_window_label"]
+    chunk["time_window_id"] = chunk["time_window_id"]
     chunk["wordform_id"] = chunk[args.token_col] + " || " + chunk["vowel_seq"]
     return chunk.drop(columns=["time_windows"])
 
@@ -123,7 +123,7 @@ def count_wordforms(input_csv: Path, args: argparse.Namespace, anchor_year: int)
             continue
 
         group_columns = [
-            "time_window_start", "time_window_end", "time_window_label",
+            "time_window_start", "time_window_end", "time_window_id",
             "time_window_id", "wordform_id", args.token_col, "vowel_seq"
         ]
         groups.append(
@@ -144,7 +144,7 @@ def count_wordforms(input_csv: Path, args: argparse.Namespace, anchor_year: int)
         raise ValueError("No usable word forms remain after preprocessing.")
 
     group_columns = [
-        "time_window_start", "time_window_end", "time_window_label",
+        "time_window_start", "time_window_end", "time_window_id",
         "time_window_id", "wordform_id", args.token_col, "vowel_seq"
     ]
     return (
