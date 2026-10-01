@@ -1,0 +1,22 @@
+{
+  "input_dir": "analysis/tests/output/processed",
+  "output_file": "analysis/tests/output/vowels/hangul_vowel_tokens_diachronic.csv",
+  "input_patterns": [
+    "*.jsonl",
+    "*.jsonl.gz"
+  ],
+  "min_vowels": 2,
+  "exclude_pure_hj": false,
+  "allowed_categories": null,
+  "progress_every": 100000,
+  "arae_noninitial_merger_start": 1500,
+  "arae_noninitial_merger_end": 1599,
+  "arae_initial_merger_start": 1700,
+  "arae_initial_merger_end": 1750,
+  "lmk_emk_transition_start": 1590,
+  "lmk_emk_transition_end": 1650,
+  "idu_dictionary_hangul_correspondences": true,
+  "emit_idu_general_exclusion_matches": false,
+  "emit_idu_noun_exclusion_matches": true,
+  "emit_all_idu_reading_variants": true
+}
