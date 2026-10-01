@@ -132,6 +132,27 @@ def main() -> None:
     sampled_file = sampling_output_dir / "sampled_time_window_wordforms.csv"
     extracted = pd.read_csv(extracted_file, encoding="utf-8-sig")
     sampled = pd.read_csv(sampled_file, encoding="utf-8-sig")
+    required_harmony_columns = {
+        "vowel_classes_core",
+        "harmony_status_core",
+        "vowel_classes_expanded",
+        "harmony_status_expanded",
+    }
+    missing_harmony_columns = required_harmony_columns - set(extracted.columns)
+    if missing_harmony_columns:
+        raise AssertionError(
+            "Extraction output is missing harmony classification columns: "
+            f"{sorted(missing_harmony_columns)}"
+        )
+    print("PASS: extracted output contains all core and expanded harmony columns.")
+
+    for column in ("vowel_classes", "harmony_status"):
+        if column not in extracted.columns:
+            raise AssertionError(
+                f"Extraction output is missing backward-compatible column: {column}"
+            )
+    print("PASS: backward-compatible expanded harmony columns are present.")
+
 
     expected_max = sampling_config["max_word_vowels"]
     if expected_max is None:
