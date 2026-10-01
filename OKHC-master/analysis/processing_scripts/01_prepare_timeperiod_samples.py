@@ -76,7 +76,7 @@ import pandas as pd
 # =============================================================================
 
 DEFAULT_INPUT_CSV = Path("analysis/data/hangul_vowel_tokens_diachronic.csv")
-DEFAULT_OUTPUT_DIR = Path("analysis/data/timetime window_samples")
+DEFAULT_OUTPUT_DIR = Path("analysis/data/timeperiod_samples")
 PROJECT_ROOT_ENV_VAR = "OKHC_ROOT"
 
 # Input column names. These match the columns shown in your current processing output.
@@ -128,7 +128,7 @@ TARGET_WORDFORMS_PER_WINDOW = 1_000
 
 # Default sampling mode.
 #   cap-preserve-windows: preserve the full time frame after --start-year by keeping
-#       up to TARGET_WORDFORMS_PER_PERIOD per time window; low-N time windows stay included.
+#       up to TARGET_WORDFORMS_PER_WINDOW per time window; low-N time windows stay included.
 #   strict-balanced: exclude time windows below thresholds and force all included time windows
 #       to exactly the same size.
 SAMPLING_MODE = "cap-preserve-windows"
@@ -367,7 +367,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--target-wordforms-per-window",
         type=int,
-        default=TARGET_WORDFORMS_PER_PERIOD,
+        default=TARGET_WORDFORMS_PER_WINDOW,
         help=(
             "Maximum number of highest-frequency word forms to keep per time window in "
             "cap-preserve-windows mode. Periods with fewer forms are kept in full and "
@@ -742,7 +742,8 @@ def main() -> None:
             year_col=args.year_col,
             token_col=args.token_col,
             vowels_col=args.vowels_col,
-            time window_size=args.time window_size,
+            window_width=args.window_width,
+            window_step=args.window_step,
             anchor_year=anchor_year,
             min_word_vowels=args.min_word_vowels,
             min_analysis_year=analysis_start_year,
@@ -754,6 +755,7 @@ def main() -> None:
                 "time_window_start",
                 "time_window_end",
                 "time_window_label",
+                "time_window_id",
                 "wordform_id",
                 args.token_col,
                 "vowel_seq",
@@ -790,6 +792,7 @@ def main() -> None:
         "time_window_start",
         "time_window_end",
         "time_window_label",
+        "time_window_id",
         "wordform_id",
         args.token_col,
         "vowel_seq",
@@ -829,7 +832,7 @@ def main() -> None:
     # requested sampling mode.
     # -------------------------------------------------------------------------
     window_counts = (
-        wordforms.groupby(["time_window_start", "time_window_end", "time_window_label"], as_index=False)
+        wordforms.groupby(["time_window_start", "time_window_end", "time_window_label", "time_window_id"], as_index=False)
         .agg(
             available_wordforms_before_balancing=("wordform_id", "nunique"),
             total_token_count_represented_before_balancing=("token_count_in_window", "sum"),
@@ -865,7 +868,7 @@ def main() -> None:
             & (~window_counts["time_window_label"].astype(str).isin(manually_excluded_windows))
         )
 
-    def explain_time window_exclusion(row: pd.Series) -> str:
+    def explain_time_window_exclusion(row: pd.Series) -> str:
         """Give a readable reason for each time window's inclusion/exclusion status."""
         if str(row["time_window_label"]) in manually_excluded_windows:
             return "EXCLUDED: manually listed in --exclude-windows"
@@ -886,7 +889,7 @@ def main() -> None:
             )
         return "INCLUDED"
 
-    window_counts["time_window_exclusion_reason"] = window_counts.apply(explain_time window_exclusion, axis=1)
+    window_counts["time_window_exclusion_reason"] = window_counts.apply(explain_time_window_exclusion, axis=1)
 
     eligible_windows = window_counts[window_counts["time_window_is_eligible_for_sampling"]].copy()
     excluded_windows = window_counts[~window_counts["time_window_is_eligible_for_sampling"]].copy()
@@ -997,18 +1000,18 @@ def main() -> None:
     # -------------------------------------------------------------------------
     # Write the main outputs.
     # -------------------------------------------------------------------------
-    balanced_wordforms_path = args.output_dir / "time_window_wordforms.csv"
+    balanced_wordforms_path = args.output_dir / "sampled_time_window_wordforms.csv"
     balanced_tokens_path = args.output_dir / "sampled_time_window_original_token_rows.csv"
-    time window_summary_path = args.output_dir / "time_window_summary.csv"
+    time_window_summary_path = args.output_dir / "time_window_summary.csv"
     excluded_windows_path = args.output_dir / "excluded_time_windows_due_to_low_sample.csv"
-    all_time window_diagnostics_path = args.output_dir / "all_time_window_diagnostics_before_sampling.csv"
+    all_time_window_diagnostics_path = args.output_dir / "all_time_window_diagnostics_before_sampling.csv"
 
     balanced_wordforms.to_csv(balanced_wordforms_path, index=False, encoding="utf-8-sig")
-    window_counts.to_csv(all_time window_diagnostics_path, index=False, encoding="utf-8-sig")
+    window_counts.to_csv(all_time_window_diagnostics_path, index=False, encoding="utf-8-sig")
     excluded_windows.to_csv(excluded_windows_path, index=False, encoding="utf-8-sig")
 
     selected_summary = (
-        balanced_wordforms.groupby(["time_window_start", "time_window_end", "time_window_label"], as_index=False)
+        balanced_wordforms.groupby(["time_window_start", "time_window_end", "time_window_label", "time_window_id"], as_index=False)
         .agg(
             selected_wordforms_after_balancing=("wordform_id", "nunique"),
             tokens_in_selected_wordforms=("token_count_in_window", "sum"),
@@ -1018,10 +1021,10 @@ def main() -> None:
     )
     time window_summary = window_counts.merge(
         selected_summary,
-        on=["time_window_start", "time_window_end", "time_window_label"],
+        on=["time_window_start", "time_window_end", "time_window_label", "time_window_id"],
         how="left",
     )
-    time window_summary.to_csv(time window_summary_path, index=False, encoding="utf-8-sig")
+    time window_summary.to_csv(time_window_summary_path, index=False, encoding="utf-8-sig")
 
     # -------------------------------------------------------------------------
     # Optional second pass: preserve original token rows belonging to selected word forms.
@@ -1053,7 +1056,8 @@ def main() -> None:
                 year_col=args.year_col,
                 token_col=args.token_col,
                 vowels_col=args.vowels_col,
-                time window_size=args.time window_size,
+                window_width=args.window_width,
+            window_step=args.window_step,
                 anchor_year=anchor_year,
                 min_word_vowels=args.min_word_vowels,
                 min_analysis_year=analysis_start_year,
@@ -1096,9 +1100,9 @@ def main() -> None:
         print("     Original token rows represented by the selected word forms; useful for auditing.")
     else:
         print("  2. Skipped original token-row audit output because --skip-token-row-output was used.")
-    print(f"  3. {time window_summary_path}")
+    print(f"  3. {time_window_summary_path}")
     print("     Period-level sample-size and token-count diagnostics, including eligibility status.")
-    print(f"  4. {all_time window_diagnostics_path}")
+    print(f"  4. {all_time_window_diagnostics_path}")
     print("     Diagnostics for every configured time window before balancing, including sparse time windows.")
     print(f"  5. {excluded_windows_path}")
     print("     Periods excluded from the TP input. In cap-preserve-windows mode, this is usually empty unless time windows were manually excluded or failed the token threshold.")
