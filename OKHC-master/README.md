@@ -71,6 +71,16 @@ definitions such as the vowel inventory and RTR classification remain in
 Python because they define how the extractor works rather than merely
 configuring a run.
 
+The extractor records two harmony classifications. The **core** inventory is
+the classical seven-vowel Middle Korean system (light/+RTR `ㆍ ㅏ ㅗ`,
+dark/-RTR `ㅡ ㅓ ㅜ`, neutral `ㅣ`). The **expanded** inventory is an
+explicit analytical extension in which additional complex/derived vowel
+symbols inherit the harmony value of their historical nucleus. A vowel outside
+the selected inventory is `OTHER`; it is never silently treated as neutral.
+A sequence containing `OTHER` is therefore labeled
+`unclassifiable_due_to_other` rather than being called harmonic or
+disharmonic.
+
 ### Test pipeline
 
 The complete pipeline can be tested with the small fixture using:
@@ -105,8 +115,16 @@ It does four main things:
 
 1. extracts Hangul tokens and their vowel sequences;
 2. records historical/event metadata;
-3. adds Idu dictionary-derived Hangul readings when enabled;
+3. optionally identifies Idu dictionary matches and their Hangul reading candidates;
 4. writes one analysis-ready row per usable token/reading.
+
+When `exclude_idu_derived_wordforms` is enabled, dictionary-derived Hangul
+reading candidates are omitted from the analytical CSV. Independently written
+Hangul tokens are not removed merely because an Idu match occurs elsewhere in
+the same document: the dictionary correspondence does not by itself establish
+that an ordinary Hangul token is the realization of that Idu match. This
+distinction prevents the extractor from making an unsupported occurrence-level
+pronunciation inference.
 
 It deliberately does **not** assign analytical time periods. The raw `year` remains the temporal information used by the sampling stage.
 
