@@ -22,14 +22,15 @@ The script:
 8. Optionally, strict-balanced mode reproduces the older behavior: exclude periods
    below --min-period-wordforms and balance all remaining periods to the smallest
    eligible period.
-9. Writes a filtered word-form CSV that the TP-analysis script can read later.
-10. Optionally writes the original token rows represented by those selected word forms.
+9. Writes a filtered word-form CSV for later phonological analyses; this script does not construct UR/SR pairs.
+10. Preserves token-source provenance so Idu-derived observations can be audited or excluded in sensitivity analyses.
+11. Optionally writes the original token rows represented by those selected word forms.
 
 Why this is split off
 ---------------------
-Frequency filtering is separated from TP testing so that:
-- the TP-analysis script always runs on the same controlled sample;
-- alternative TP conditions do not accidentally change the frequency sample;
+Frequency filtering is separated from phonological analysis so that:
+- later TP/D2L analyses always run on the same controlled sample;
+- alternative phonological conditions do not accidentally change the frequency sample;
 - the sample-balancing step can be inspected before any theoretical claims are made;
 - sparse edge periods can be preserved in diagnostics without forcing all other
   periods down to the sparse period's sample size.
@@ -49,7 +50,8 @@ Expected important input columns
 --------------------------------
 year    : token date/year. Used to assign configured periods.
 token   : orthographic word form. Used as the word-form label.
-vowels  : vowel sequence for that token. Used to distinguish forms and later run TP tests.
+vowels       : vowel sequence for that token. Raw vowel identities are retained.
+token_source : provenance label for the extracted observation; retained for sensitivity analysis.
 
 The script is intentionally configurable near the top. If your CSV uses different column
 names, edit the CONFIG section or pass command-line arguments.
