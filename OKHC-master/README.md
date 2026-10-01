@@ -10,19 +10,19 @@ The project has three processing stages before the phonological analysis:
 raw OKHC JSONL
      |
      v
-run_preprocessing_portable.py
+01_preprocess_corpus.py
      |
      v
 processed/classified OKHC JSONL
      |
      v
-extract_diachronic_hangul_vowels_with_idu_integrated.py
+02_extract_diachronic_vowels.py
      |
      v
 hangul_vowel_tokens_diachronic.csv
      |
      v
-01_prepare_timeperiod_samples.py
+03_prepare_time_window_samples.py
      |
      v
 historical time-window samples
@@ -33,7 +33,7 @@ TP / D2L analysis
 
 ### 1. Corpus preprocessing
 
-`run_preprocessing_portable.py` is the entry point for the first stage. It reads the raw OKHC JSONL files in chunks, then calls the existing preprocessing and classification modules:
+`01_preprocess_corpus.py` is the entry point for the first stage. It reads the raw OKHC JSONL files in chunks, then calls the existing preprocessing and classification modules:
 
 ```
 preprocessing/text_preprocessing.py
@@ -46,7 +46,7 @@ The Idu classifier in `idu/idu_classifier.py` is a separate corpus component. It
 
 ### 2. Diachronic vowel extraction
 
-`extract_diachronic_hangul_vowels_with_idu_integrated.py` reads the processed JSONL files and creates the standardized token-level CSV used by the historical analysis.
+`02_extract_diachronic_vowels.py` reads the processed JSONL files and creates the standardized token-level CSV used by the historical analysis.
 
 It does four main things:
 
@@ -59,7 +59,7 @@ It deliberately does **not** assign analytical time periods. The raw `year` rema
 
 ### 3. Time-window sampling
 
-`01_prepare_timeperiod_samples.py` is the entry point for the sampling stage. The script itself is intentionally small. Its supporting code lives in:
+`03_prepare_time_window_samples.py` is the entry point for the sampling stage. The script itself is intentionally small. Its supporting code lives in:
 
 ```
 analysis/sampling/
@@ -118,13 +118,13 @@ analysis/config/sampling_100yr_step25.json
 Run it with:
 
 ```bash
-python analysis/processing_scripts/01_prepare_timeperiod_samples.py --config analysis/config/sampling_100yr_step25.json
+python analysis/processing_scripts/03_prepare_time_window_samples.py --config analysis/config/sampling_100yr_step25.json
 ```
 
 You can also override an individual setting for a quick test:
 
 ```bash
-python analysis/processing_scripts/01_prepare_timeperiod_samples.py --config analysis/config/sampling_default.json --window-width 100 --window-step 25
+python analysis/processing_scripts/03_prepare_time_window_samples.py --config analysis/config/sampling_default.json --window-width 100 --window-step 25
 ```
 
 The JSON file is the normal place to make experimental changes.
