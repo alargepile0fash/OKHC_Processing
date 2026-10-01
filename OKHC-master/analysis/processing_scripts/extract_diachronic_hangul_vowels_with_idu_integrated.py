@@ -3,7 +3,6 @@ import gzip
 import json
 import sys
 import unicodedata as ud
-from collections import defaultdict
 from pathlib import Path
 
 import regex as re
@@ -53,44 +52,6 @@ PROGRESS_EVERY = 100_000
 
 
 # ============================================================
-# IDU / KOREAN-STYLE SINITIC SETTINGS
-# ============================================================
-
-# Idu resources may be placed in any of these directories.
-IDU_RESOURCE_CANDIDATE_DIRS = [
-    Path(__file__).resolve().parent / "resources",
-    REPO_ROOT / "resources",
-    REPO_ROOT / "preprocessing" / "resources",
-    REPO_ROOT / "analysis" / "resources",
-    REPO_ROOT / "idu" / "resources"
-]
-
-IDU_DICTIONARY_FILENAME = "idu_dictionary.jsonl"
-IDU_EXCLUSIONS_FILENAME = "idu_exclusions.json"
-IDU_NOUN_EXCLUSIONS_FILENAME = "idu_noun_exclusions.json"
-IDU_HEADS_FILENAME = "idu_heads.json"
-
-# Emit rows produced from idu_dictionary.jsonl: idu_text -> hangul_text.
-# These rows have token_source = idu_dictionary_hangul_correspondence.
-ENABLE_IDU_DICTIONARY_HANGUL_CORRESPONDENCES = True
-
-# General exclusions are forms that the Idu classifier treats as false-positive-ish
-# for grammatical Idu. For vowel-harmony extraction, the safest default is to skip
-# them as dictionary-derived rows, while still extracting ordinary Hangul tokens
-# from the text as usual.
-EMIT_IDU_GENERAL_EXCLUSION_MATCHES = False
-
-# Noun exclusions are not skipped. They are emitted but flagged with
-# idu_is_noun_exclusion = 1. This preserves potentially relevant Korean-style
-# Sinitic lexical material while keeping it filterable later.
-EMIT_IDU_NOUN_EXCLUSION_MATCHES = True
-
-# If the same idu_text has multiple dictionary rows/readings, emit all unique
-# readings by default. This preserves ambiguity for later filtering.
-EMIT_ALL_IDU_READING_VARIANTS = True
-
-
-# ============================================================
 # HISTORICAL EVENT SETTINGS
 # Adjust these later if your paper uses different dating.
 # ============================================================
@@ -110,7 +71,7 @@ LMK_EMK_TRANSITION_END = 1650
 # ============================================================
 
 # The extractor intentionally does not assign analysis periods.
-# Downstream scripts construct 25-year time-period samples from the raw year
+# Downstream scripts construct configurable time-window samples from the raw year
 # column so temporal sampling remains a separate, reproducible analysis step.
 
 # ============================================================
