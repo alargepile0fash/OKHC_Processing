@@ -49,6 +49,7 @@ def load_config(path: Path) -> dict:
         "emit_idu_general_exclusion_matches",
         "emit_idu_noun_exclusion_matches",
         "emit_all_idu_reading_variants",
+        "exclude_idu_derived_wordforms",
     }
     missing = required - config.keys()
     if missing:
@@ -407,6 +408,7 @@ def process_corpus(config: dict) -> None:
     bad_json_lines = 0
     idu_matches_seen = 0
     idu_matches_with_usable_vowels = 0
+    idu_wordforms_excluded = 0
 
     with output_file.open("w", encoding="utf-8-sig", newline="") as outfile:
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
@@ -474,6 +476,10 @@ def process_corpus(config: dict) -> None:
 
                                     idu_matches_with_usable_vowels += 1
 
+                                    if config["exclude_idu_derived_wordforms"]:
+                                        idu_wordforms_excluded += 1
+                                        continue
+
                                     idu_metadata = {
                                         "idu_match_text": idu_match["match_text"],
                                         "idu_match_start": idu_match["start"],
@@ -522,6 +528,7 @@ def process_corpus(config: dict) -> None:
     print(f"Idu correspondence rows written: {idu_correspondence_rows_written:,}")
     print(f"Idu dictionary matches seen: {idu_matches_seen:,}")
     print(f"Idu matches with usable vowel readings: {idu_matches_with_usable_vowels:,}")
+    print(f"Idu-derived wordforms excluded: {idu_wordforms_excluded:,}")
     print(f"Bad JSON lines skipped: {bad_json_lines:,}")
     print(f"Saved output to: {output_file}")
 
