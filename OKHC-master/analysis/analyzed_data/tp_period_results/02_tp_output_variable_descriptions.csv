@@ -1,0 +1,43 @@
+﻿variable,description
+condition_id,Unique name for the condition being tested.
+condition_family,"baseline, exclude_from_consideration, or discard_wordforms_containing."
+condition_excluded_vowels,Vowels targeted by this condition; NONE for baseline.
+condition_description,Plain-language explanation of what the condition does.
+analysis_level,word_level or candidate_vowel_level.
+analysis_level_description,Plain-language explanation of what N means for that output.
+N_candidates,TP domain size N after the condition is applied and non-evaluable items are removed.
+exceptions_e,Number of TP exceptions e in that domain.
+exception_rate_e_over_N,"Raw exception rate, e/N."
+theta_N_float,Tolerance threshold theta_N = N / ln(N).
+theta_N_integer_floor,Largest whole-number exception count safely below theta_N.
+tolerated_exception_rate_theta_over_N,Threshold as a proportion of N; equals 1/ln(N).
+tp_passes,TRUE if exceptions_e <= theta_N_float; FALSE otherwise.
+tp_result_description,Plain-language pass/fail/not-testable explanation.
+wordforms_available_before_condition,Number of balanced word forms in the period before applying the condition.
+wordforms_discarded_by_condition,Number of word forms removed by discard_wordforms_containing conditions.
+wordforms_too_short_after_condition,Number of non-discarded word forms with fewer than two reduced vowels.
+wordforms_with_evaluable_windows,Number of word forms contributing at least one evaluable vowel window.
+candidate_windows_total_before_skipping,Number of adjacent reduced-vowel windows before unknown/neutral skipping rules are applied.
+candidate_windows_skipped,Number of candidate windows skipped because they were configured as not evaluable.
+original_vowel_sequence,Vowel sequence before the condition is applied.
+reduced_vowel_sequence,Vowel sequence after exclusion/discard condition is applied.
+original_class_sequence,Harmony-class sequence before the condition is applied.
+reduced_class_sequence,"Harmony-class sequence after the condition is applied, e.g. dark-bright."
+candidate_window_index,Position of the non-initial target vowel in the reduced sequence.
+candidate_window_description,previous considered vowel -> non-initial candidate vowel.
+prev_vowel,Immediately preceding considered vowel in the reduced sequence.
+target_vowel,Non-initial candidate vowel being evaluated.
+prev_class,Harmony class of prev_vowel under VOWEL_CLASS_MAP.
+target_class,Harmony class of target_vowel under VOWEL_CLASS_MAP.
+candidate_is_evaluable,TRUE if this window contributes to TP N.
+candidate_is_exception,TRUE if this evaluable window is counted as a TP exception.
+candidate_status,Compact label explaining harmonic/exception/skipped status.
+candidate_status_description,Plain-language explanation of the candidate-status label.
+wordform_count,Unweighted count of word forms with a given reduced sequence.
+token_weighted_count,Sum of token frequencies for word forms with a given reduced sequence.
+share_of_wordforms_in_period_condition,Within-period share of word forms with that reduced sequence under that condition.
+rank_within_period_condition,Frequency rank of the sequence within the period and condition.
+candidate_count,Number of candidate windows for a pair in heatmap-ready output.
+exception_count,Number of exception windows for a pair in heatmap-ready output.
+token_weighted_candidate_count,Token-frequency-weighted candidate count for heatmap-ready output.
+token_weighted_exception_count,Token-frequency-weighted exception count for heatmap-ready output.

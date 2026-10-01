@@ -1,0 +1,28 @@
+﻿setting,value,description
+TEST_VOWELS,ㅡ+ㅣ+ㅜ,Vowels tested in exclusion and discard conditions.
+CONTRASTIVE_CLASSES,BRIGHT+DARK,Classes treated as ordinary harmony values.
+COUNT_NEUTRAL_WINDOWS_AS_EXCEPTIONS,True,Whether neutral-involving windows count as exceptions when not excluded.
+SKIP_UNKNOWN_WINDOWS,True,Whether windows with UNKNOWN vowel classes are skipped.
+MIN_REDUCED_VOWELS_FOR_TEST,2,Minimum reduced vowels needed for a word form to be testable.
+VOWEL_CLASS_MAP[ㅏ],BRIGHT,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅐ],BRIGHT,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅑ],BRIGHT,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅒ],BRIGHT,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅓ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅔ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅕ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅖ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅗ],BRIGHT,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅘ],BRIGHT,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅙ],BRIGHT,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅚ],BRIGHT,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅛ],BRIGHT,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅜ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅝ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅞ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅟ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅠ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅡ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅢ],DARK,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㅣ],NEUTRAL,Harmony class assigned to this vowel symbol.
+VOWEL_CLASS_MAP[ㆍ],BRIGHT,Harmony class assigned to this vowel symbol.
