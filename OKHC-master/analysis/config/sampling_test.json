@@ -1,6 +1,7 @@
 {
+  "runs_dir": "analysis/tests/output",
+  "run_name": "sampling",
   "input": "analysis/tests/output/vowels/hangul_vowel_tokens_diachronic.csv",
-  "output_dir": "analysis/tests/output/samples",
   "year_col": "year",
   "token_col": "token",
   "vowels_col": "vowels",
