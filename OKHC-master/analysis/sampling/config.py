@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = PROJECT_ROOT / "config" / "sampling_default.json"
+DEFAULT_CONFIG = PROJECT_ROOT / "analysis" / "config" / "sampling_default.json"
 
 
 def load_config(path: Path) -> dict:
