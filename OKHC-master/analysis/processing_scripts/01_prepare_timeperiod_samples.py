@@ -586,6 +586,8 @@ def write_variable_descriptions(output_dir: Path) -> None:
         ("token", "Orthographic word form from the original corpus."),
         ("vowel_seq", "Normalized vowel sequence, separated by spaces."),
         ("num_vowels_normalized", "Number of vowel symbols in vowel_seq after normalization."),
+        ("token_sources_present", "Pipe-separated provenance labels represented by the selected word form in this period. Provenance is metadata and does not change the sampling unit."),
+        ("contains_idu_derived_observation", "TRUE if this word form has at least one Idu-dictionary-derived observation. Use this for source-sensitivity analyses."),
         ("token_count_in_period", "Number of token occurrences of this word form in this configured period."),
         ("first_observed_year_in_period", "Earliest token year for this word form inside the period."),
         ("last_observed_year_in_period", "Latest token year for this word form inside the period."),
