@@ -1,5 +1,4 @@
 {
-  "raw_input": "analysis/tests/sample.jsonl",
   "preprocessing_config": "analysis/config/preprocessing_test.json",
   "extraction_config": "analysis/config/extraction_test.json",
   "sampling_config": "analysis/config/sampling_test.json",
