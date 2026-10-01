@@ -1,0 +1,16 @@
+﻿condition_id,condition_family,condition_excluded_vowels,condition_description
+baseline_no_excluded_vowels,baseline,NONE,No vowels are excluded or discarded; all vowel windows are evaluated under the configured class map.
+exclude_from_consideration_ㅡ,exclude_from_consideration,ㅡ,"Keep word forms, but remove ㅡ from the vowel sequence before evaluating harmony."
+exclude_from_consideration_ㅣ,exclude_from_consideration,ㅣ,"Keep word forms, but remove ㅣ from the vowel sequence before evaluating harmony."
+exclude_from_consideration_ㅜ,exclude_from_consideration,ㅜ,"Keep word forms, but remove ㅜ from the vowel sequence before evaluating harmony."
+exclude_from_consideration_ㅡㅣ,exclude_from_consideration,ㅡ+ㅣ,"Keep word forms, but remove ㅡ, ㅣ from the vowel sequence before evaluating harmony."
+exclude_from_consideration_ㅡㅜ,exclude_from_consideration,ㅡ+ㅜ,"Keep word forms, but remove ㅡ, ㅜ from the vowel sequence before evaluating harmony."
+exclude_from_consideration_ㅣㅜ,exclude_from_consideration,ㅣ+ㅜ,"Keep word forms, but remove ㅣ, ㅜ from the vowel sequence before evaluating harmony."
+exclude_from_consideration_ㅡㅣㅜ,exclude_from_consideration,ㅡ+ㅣ+ㅜ,"Keep word forms, but remove ㅡ, ㅣ, ㅜ from the vowel sequence before evaluating harmony."
+discard_wordforms_containing_ㅡ,discard_wordforms_containing,ㅡ,Discard any word form containing at least one of: ㅡ. Remaining word forms are evaluated without removing additional vowels.
+discard_wordforms_containing_ㅣ,discard_wordforms_containing,ㅣ,Discard any word form containing at least one of: ㅣ. Remaining word forms are evaluated without removing additional vowels.
+discard_wordforms_containing_ㅜ,discard_wordforms_containing,ㅜ,Discard any word form containing at least one of: ㅜ. Remaining word forms are evaluated without removing additional vowels.
+discard_wordforms_containing_ㅡㅣ,discard_wordforms_containing,ㅡ+ㅣ,"Discard any word form containing at least one of: ㅡ, ㅣ. Remaining word forms are evaluated without removing additional vowels."
+discard_wordforms_containing_ㅡㅜ,discard_wordforms_containing,ㅡ+ㅜ,"Discard any word form containing at least one of: ㅡ, ㅜ. Remaining word forms are evaluated without removing additional vowels."
+discard_wordforms_containing_ㅣㅜ,discard_wordforms_containing,ㅣ+ㅜ,"Discard any word form containing at least one of: ㅣ, ㅜ. Remaining word forms are evaluated without removing additional vowels."
+discard_wordforms_containing_ㅡㅣㅜ,discard_wordforms_containing,ㅡ+ㅣ+ㅜ,"Discard any word form containing at least one of: ㅡ, ㅣ, ㅜ. Remaining word forms are evaluated without removing additional vowels."
