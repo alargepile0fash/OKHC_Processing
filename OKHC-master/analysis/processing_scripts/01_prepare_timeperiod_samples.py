@@ -85,6 +85,8 @@ def validate_settings(args: argparse.Namespace) -> None:
         raise ValueError("target_wordforms_per_window must be positive.")
     if args.min_window_wordforms < 0 or args.min_window_tokens < 0:
         raise ValueError("minimum sample thresholds cannot be negative.")
+    if args.max_wordforms_per_window is not None and args.max_wordforms_per_window <= 0:
+        raise ValueError("max_wordforms_per_window must be positive when provided.")
 
 
 # ---------------------------------------------------------------------------
@@ -92,13 +94,24 @@ def validate_settings(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 
-def choose_anchor_year(input_csv: Path, year_col: str, start_year: Optional[int], chunksize: int) -> int:
-    """Choose the first window boundary."""
+def choose_anchor_year(
+    input_csv: Path,
+    year_col: str,
+    start_year: Optional[int],
+    step: int,
+    chunksize: int,
+) -> int:
+    """Choose the first time-window boundary."""
     if start_year is not None:
         return start_year
 
     minimum_year = None
-    for chunk in pd.read_csv(input_csv, usecols=[year_col], chunksize=chunksize, encoding="utf-8-sig"):
+    for chunk in pd.read_csv(
+        input_csv,
+        usecols=[year_col],
+        chunksize=chunksize,
+        encoding="utf-8-sig",
+    ):
         years = pd.to_numeric(chunk[year_col], errors="coerce").dropna()
         if not years.empty:
             value = int(years.min())
@@ -107,7 +120,7 @@ def choose_anchor_year(input_csv: Path, year_col: str, start_year: Optional[int]
     if minimum_year is None:
         raise ValueError(f"No usable years found in {year_col!r}.")
 
-    return math.floor(minimum_year / chunksize) * chunksize if False else minimum_year - (minimum_year % 25)
+    return minimum_year - (minimum_year % step)
 
 
 def windows_for_year(year: int, anchor_year: int, width: int, step: int) -> list[tuple[int, int]]:
@@ -135,7 +148,13 @@ def extract_vowels(value: object) -> list[str]:
         text = text.replace(char, " ")
 
     if any(separator in text for separator in " ,;/|"):
-        pieces = [piece for piece in text.replace(",", " ").replace(";", " ").replace("/", " ").replace("|", " ").split() if piece]
+        pieces = (
+            text.replace(",", " ")
+            .replace(";", " ")
+            .replace("/", " ")
+            .replace("|", " ")
+            .split()
+        )
         result = []
         for piece in pieces:
             result.extend(extract_vowels(piece))
@@ -162,10 +181,8 @@ def extract_vowels(value: object) -> list[str]:
 def prepare_chunk(chunk: pd.DataFrame, args: argparse.Namespace, anchor_year: int) -> pd.DataFrame:
     """Clean a corpus chunk and assign each row to its time window(s)."""
     chunk = chunk.copy()
-    year = pd.to_numeric(chunk[args.year_col], errors="coerce")
-    chunk = chunk.assign(**{args.year_col: year}).dropna(
-        subset=[args.year_col, args.token_col, args.vowels_col]
-    )
+    chunk[args.year_col] = pd.to_numeric(chunk[args.year_col], errors="coerce")
+    chunk = chunk.dropna(subset=[args.year_col, args.token_col, args.vowels_col])
 
     if args.start_year is not None:
         chunk = chunk[chunk[args.year_col] >= args.start_year]
@@ -235,7 +252,10 @@ def count_wordforms(input_csv: Path, args: argparse.Namespace, anchor_year: int)
                 last_observed_year_in_window=(args.year_col, "max"),
                 num_vowels_normalized=("num_vowels_normalized", "first"),
                 token_sources_present=("token_source", lambda values: "|".join(sorted(set(values.astype(str))))),
-                contains_idu_derived_observation=("token_source", lambda values: any("idu" in str(v).lower() for v in values)),
+                contains_idu_derived_observation=(
+                    "token_source",
+                    lambda values: any("idu" in str(value).lower() for value in values),
+                ),
             ).reset_index()
         )
 
@@ -254,7 +274,10 @@ def count_wordforms(input_csv: Path, args: argparse.Namespace, anchor_year: int)
             first_observed_year_in_window=("first_observed_year_in_window", "min"),
             last_observed_year_in_window=("last_observed_year_in_window", "max"),
             num_vowels_normalized=("num_vowels_normalized", "first"),
-            token_sources_present=("token_sources_present", lambda values: "|".join(sorted(set("|".join(values).split("|"))))),
+            token_sources_present=(
+                "token_sources_present",
+                lambda values: "|".join(sorted(set("|".join(values).split("|")))),
+            ),
             contains_idu_derived_observation=("contains_idu_derived_observation", "max"),
         )
         .reset_index()
@@ -286,7 +309,14 @@ def make_window_diagnostics(wordforms: pd.DataFrame, args: argparse.Namespace) -
     diagnostics["time_window_is_low_n_warning"] = (
         diagnostics["available_wordforms_before_balancing"] < args.min_window_wordforms
     )
-    diagnostics["time_window_is_eligible_for_sampling"] = (
+    diagnostics["time_window_is_eligible_for_sampling"] = True
+
+    if args.sampling_mode == "strict-balanced":
+        diagnostics["time_window_is_eligible_for_sampling"] &= (
+            diagnostics["available_wordforms_before_balancing"] >= args.min_window_wordforms
+        )
+
+    diagnostics["time_window_is_eligible_for_sampling"] &= (
         diagnostics["total_token_count_represented_before_balancing"] >= args.min_window_tokens
     )
 
@@ -298,6 +328,11 @@ def make_window_diagnostics(wordforms: pd.DataFrame, args: argparse.Namespace) -
 
     diagnostics["time_window_exclusion_reason"] = "INCLUDED"
     diagnostics.loc[
+        diagnostics["sampling_mode"].eq("strict-balanced")
+        & diagnostics["time_window_is_low_n_warning"],
+        "time_window_exclusion_reason",
+    ] = "BELOW_MIN_WORDFORMS"
+    diagnostics.loc[
         diagnostics["total_token_count_represented_before_balancing"] < args.min_window_tokens,
         "time_window_exclusion_reason",
     ] = "BELOW_MIN_TOKENS"
@@ -308,10 +343,13 @@ def make_window_diagnostics(wordforms: pd.DataFrame, args: argparse.Namespace) -
     return diagnostics
 
 
-def select_wordforms(wordforms: pd.DataFrame, diagnostics: pd.DataFrame, args: argparse.Namespace) -> tuple[pd.DataFrame, pd.DataFrame]:
+def select_wordforms(
+    wordforms: pd.DataFrame,
+    diagnostics: pd.DataFrame,
+    args: argparse.Namespace,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Select the highest-frequency word forms for each eligible time window."""
     eligible = diagnostics[diagnostics["time_window_is_eligible_for_sampling"]].copy()
-
     if eligible.empty:
         raise ValueError("No time windows are eligible for sampling.")
 
@@ -388,17 +426,23 @@ def write_selected_token_rows(
     anchor_year: int,
     output_dir: Path,
 ) -> None:
-    """Write the original token rows represented by the selected word forms."""
+    """Write original token rows represented by the selected word forms."""
     keys = set(
         selected["time_window_label"].astype(str) + "\x1e" + selected["wordform_id"].astype(str)
     )
     output = output_dir / "sampled_time_window_original_token_rows.csv"
     wrote_header = False
-
     columns = None
-    for chunk in pd.read_csv(input_csv, chunksize=args.chunksize, encoding="utf-8-sig", low_memory=False):
+
+    for chunk in pd.read_csv(
+        input_csv,
+        chunksize=args.chunksize,
+        encoding="utf-8-sig",
+        low_memory=False,
+    ):
         if columns is None:
             columns = list(chunk.columns)
+
         prepared = prepare_chunk(chunk, args, anchor_year)
         if prepared.empty:
             continue
@@ -452,7 +496,14 @@ def main() -> None:
     if missing:
         raise ValueError(f"Missing required columns: {', '.join(missing)}")
 
-    anchor_year = choose_anchor_year(input_csv, args.year_col, args.start_year, args.chunksize)
+    anchor_year = choose_anchor_year(
+        input_csv,
+        args.year_col,
+        args.start_year,
+        args.window_step,
+        args.chunksize,
+    )
+
     print(f"Window: {args.window_width} years; step: {args.window_step} years")
     print(f"Anchor year: {anchor_year}")
 
