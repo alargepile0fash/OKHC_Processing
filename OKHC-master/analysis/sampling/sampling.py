@@ -11,12 +11,12 @@ def make_window_diagnostics(wordforms: pd.DataFrame, args: argparse.Namespace) -
     """Decide which time windows can enter the analysis sample."""
     diagnostics = (
         wordforms.groupby(
-            ["time_window_start", "time_window_end", "time_window_label", "time_window_id"],
+            ["time_window_start", "time_window_end", "time_window_id", "time_window_id"],
             as_index=False,
         )
         .agg(
-            available_wordforms_before_balancing=("wordform_id", "nunique"),
-            total_token_count_represented_before_balancing=("token_count_in_window", "sum"),
+            available_wordforms_before_sampling=("wordform_id", "nunique"),
+            total_token_count_represented_before_sampling=("token_count_in_window", "sum"),
         )
     )
 
@@ -30,22 +30,22 @@ def make_window_diagnostics(wordforms: pd.DataFrame, args: argparse.Namespace) -
     diagnostics["window_overlap_years"] = max(0, args.window_width - args.window_step)
 
     diagnostics["time_window_is_low_n_warning"] = (
-        diagnostics["available_wordforms_before_balancing"] < args.min_window_wordforms
+        diagnostics["available_wordforms_before_sampling"] < args.min_window_wordforms
     )
     diagnostics["time_window_is_eligible_for_sampling"] = True
 
     if args.sampling_mode == "strict-balanced":
         diagnostics["time_window_is_eligible_for_sampling"] &= (
-            diagnostics["available_wordforms_before_balancing"] >= args.min_window_wordforms
+            diagnostics["available_wordforms_before_sampling"] >= args.min_window_wordforms
         )
 
     diagnostics["time_window_is_eligible_for_sampling"] &= (
-        diagnostics["total_token_count_represented_before_balancing"] >= args.min_window_tokens
+        diagnostics["total_token_count_represented_before_sampling"] >= args.min_window_tokens
     )
 
     if args.exclude_windows:
         diagnostics.loc[
-            diagnostics["time_window_label"].isin(args.exclude_windows),
+            diagnostics["time_window_id"].isin(args.exclude_windows),
             "time_window_is_eligible_for_sampling",
         ] = False
 
@@ -56,11 +56,11 @@ def make_window_diagnostics(wordforms: pd.DataFrame, args: argparse.Namespace) -
         "time_window_exclusion_reason",
     ] = "BELOW_MIN_WORDFORMS"
     diagnostics.loc[
-        diagnostics["total_token_count_represented_before_balancing"] < args.min_window_tokens,
+        diagnostics["total_token_count_represented_before_sampling"] < args.min_window_tokens,
         "time_window_exclusion_reason",
     ] = "BELOW_MIN_TOKENS"
     diagnostics.loc[
-        diagnostics["time_window_label"].isin(args.exclude_windows),
+        diagnostics["time_window_id"].isin(args.exclude_windows),
         "time_window_exclusion_reason",
     ] = "MANUALLY_EXCLUDED"
     return diagnostics
@@ -77,25 +77,25 @@ def select_wordforms(
         raise ValueError("No time windows are eligible for sampling.")
 
     if args.sampling_mode == "strict-balanced":
-        selected_n = int(eligible["available_wordforms_before_balancing"].min())
+        selected_n = int(eligible["available_wordforms_before_sampling"].min())
         if args.max_wordforms_per_window is not None:
             selected_n = min(selected_n, args.max_wordforms_per_window)
     else:
         selected_n = args.target_wordforms_per_window
 
     diagnostics["selected_sample_size_for_window"] = diagnostics.apply(
-        lambda row: min(int(row["available_wordforms_before_balancing"]), selected_n)
+        lambda row: min(int(row["available_wordforms_before_sampling"]), selected_n)
         if row["time_window_is_eligible_for_sampling"] else 0,
         axis=1,
     )
 
     selected = wordforms.merge(
         diagnostics[[
-            "time_window_label", "time_window_is_eligible_for_sampling",
+            "time_window_id", "time_window_is_eligible_for_sampling",
             "time_window_is_low_n_warning", "time_window_exclusion_reason",
             "sampling_mode", "target_wordforms_per_window", "selected_sample_size_for_window",
         ]],
-        on="time_window_label",
+        on="time_window_id",
         how="left",
     )
     selected = selected[selected["time_window_is_eligible_for_sampling"]].copy()
