@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from typing import Optional
 
@@ -40,11 +39,12 @@ def choose_anchor_year(
 
 def windows_for_year(year: int, anchor_year: int, width: int, step: int) -> list[tuple[int, int]]:
     """Return every configured window containing a given year."""
-    latest_start = anchor_year + math.floor((year - anchor_year) / step) * step
-    earliest_start = latest_start - width + 1
-    first_start = anchor_year + math.ceil((earliest_start - anchor_year) / step) * step
-    return [
-        (start, start + width - 1)
-        for start in range(first_start, latest_start + 1, step)
-        if start >= anchor_year
-    ]
+    latest_start = anchor_year + ((year - anchor_year) // step) * step
+
+    starts = []
+    start = latest_start
+    while start >= anchor_year and start + width - 1 >= year:
+        starts.append(start)
+        start -= step
+
+    return [(start, start + width - 1) for start in reversed(starts)]
