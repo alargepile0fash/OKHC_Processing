@@ -581,7 +581,6 @@ def base_output_row(row: dict, input_file: Path) -> dict:
         "input_file": str(input_file),
         "doc_id": row.get("id"),
         "year": year,
-        "period_50yr": assign_50yr_period(year),
         "arae_noninitial_phase": event_phase(year, ARAE_NONINITIAL_MERGER_START, ARAE_NONINITIAL_MERGER_END),
         "arae_initial_phase": event_phase(year, ARAE_INITIAL_MERGER_START, ARAE_INITIAL_MERGER_END),
         "lmk_emk_transition_phase": event_phase(year, LMK_EMK_TRANSITION_START, LMK_EMK_TRANSITION_END),
