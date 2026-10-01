@@ -31,6 +31,54 @@ historical time-window samples
 TP / D2L analysis
 ```
 
+### Configuration
+
+Quickly changeable pipeline settings are kept in JSON configuration files rather
+than in the processing scripts:
+
+```
+analysis/config/
+├── preprocessing_default.json
+├── preprocessing_test.json
+├── extraction_default.json
+├── extraction_test.json
+├── sampling_default.json
+├── sampling_test.json
+└── test_pipeline.json
+```
+
+The production configurations control normal input/output locations, chunking,
+extraction filters, historical event boundaries, Idu extraction options, and
+sampling design. The test configurations point the same processing logic at
+the small test fixture.
+
+For the production pipeline, run each stage with its corresponding
+configuration:
+
+```bash
+python analysis/scripts/01_preprocess_corpus.py --config analysis/config/preprocessing_default.json
+python analysis/scripts/02_extract_diachronic_vowels.py --config analysis/config/extraction_default.json
+python analysis/scripts/03_prepare_time_window_samples.py --config analysis/config/sampling_default.json
+```
+
+The Python files contain the processing logic; the JSON files are the normal
+place to change experimental or run-specific settings. Core linguistic
+definitions such as the vowel inventory and RTR classification remain in
+Python because they define how the extractor works rather than merely
+configuring a run.
+
+### Test pipeline
+
+The complete pipeline can be tested with the small fixture using:
+
+```bash
+python analysis/scripts/04_run_test_pipeline.py
+```
+
+The test runner reads `analysis/config/test_pipeline.json`, which selects the
+preprocessing, extraction, and sampling test configurations. Generated test
+output stays under `analysis/tests/output/`.
+
 ### 1. Corpus preprocessing
 
 `01_preprocess_corpus.py` is the entry point for the first stage. It reads the raw OKHC JSONL files in chunks, then calls the existing preprocessing and classification modules:
