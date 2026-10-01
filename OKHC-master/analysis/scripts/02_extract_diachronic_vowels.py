@@ -102,9 +102,10 @@ VOWEL_NORMALIZATION = {
     "ᆞ": "ㆍ", "ㆍ": "ㆍ", "ㆎ": "ㆎ",
 }
 
-PLUS_RTR = {"ㆍ", "ㅗ", "ㅏ", "ㅐ", "ㅑ", "ㅚ", "ㅛ"}
-MINUS_RTR = {"ㅡ", "ㅜ", "ㅓ", "ㅔ", "ㅕ", "ㅟ", "ㅠ"}
+PLUS_RTR = {"ㆍ", "ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ"}
+MINUS_RTR = {"ㅡ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ"}
 NEUTRAL = {"ㅣ"}
+SPECIAL = {"ㅢ", "ㆎ"}
 
 ARAE_A = "ㆍ"
 ARAE_INITIAL_REFLEX = "ㅏ"
@@ -141,18 +142,27 @@ def vowel_class(vowel: str) -> str:
         return "-RTR"
     if vowel in NEUTRAL:
         return "NEUTRAL"
+    if vowel in SPECIAL:
+        return "SPECIAL"
     return "OTHER"
 
 
 def classify_vowel_sequence(vowels: list[str]) -> str:
     classes = [vowel_class(v) for v in vowels]
+
+    if "SPECIAL" in classes:
+        return "special_vowel_present"
+
+    if "OTHER" in classes:
+        return "other_vowel_present"
+
     non_neutral_classes = [
         c for c in classes
-        if c not in {"NEUTRAL", "OTHER"}
+        if c != "NEUTRAL"
     ]
 
     if not non_neutral_classes:
-        return "neutral_or_other_only"
+        return "neutral_only"
 
     if len(set(non_neutral_classes)) == 1:
         if "NEUTRAL" in classes:
