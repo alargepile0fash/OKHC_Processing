@@ -1,0 +1,10 @@
+{
+  "input_dir": "raw_data",
+  "output_dir": "analysis/data",
+  "chunk_size": 10000,
+  "skip_existing_output": true,
+  "input_patterns": [
+    "*.jsonl",
+    "*.jsonl.gz"
+  ]
+}
