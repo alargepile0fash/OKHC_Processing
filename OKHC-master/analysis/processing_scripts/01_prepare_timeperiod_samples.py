@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-01_build_balanced_period_sample.py
+01_prepare_timeperiod_samples.py
 
 Purpose
 -------
@@ -73,7 +73,7 @@ import pandas as pd
 # =============================================================================
 
 DEFAULT_INPUT_CSV = Path("analysis/data/hangul_vowel_tokens_diachronic.csv")
-DEFAULT_OUTPUT_DIR = Path("analysis/data/tp_period_balanced")
+DEFAULT_OUTPUT_DIR = Path("analysis/data/timeperiod_samples")
 PROJECT_ROOT_ENV_VAR = "OKHC_ROOT"
 
 # Input column names. These match the columns shown in your current processing output.
@@ -88,6 +88,7 @@ OPTIONAL_METADATA_COLS = [
     "doc_id",
     "source",
     "corpus",
+    "token_source",
     "token_context",
     "harmony_status",
     "vowel_classes",
@@ -649,7 +650,7 @@ def main() -> None:
 
     # Read only the header first. This validates the file and avoids loading the full corpus.
     header = pd.read_csv(args.input, nrows=0, encoding="utf-8-sig")
-    require_columns(header.columns, [args.year_col, args.token_col, args.vowels_col])
+    require_columns(header.columns, [args.year_col, args.token_col, args.vowels_col, "token_source"])
 
     if args.start_year is None:
         min_year = find_min_usable_year(args.input, args.year_col, args.chunksize)
@@ -666,7 +667,7 @@ def main() -> None:
     print("Counting period-specific word forms in chunks...")
 
     # For the counting pass, read only the columns needed to build the balanced word-form sample.
-    count_usecols = [args.year_col, args.token_col, args.vowels_col]
+    count_usecols = [args.year_col, args.token_col, args.vowels_col, "token_source"]
 
     grouped_chunks: list[pd.DataFrame] = []
     total_rows_seen = 0
