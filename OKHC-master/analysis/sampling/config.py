@@ -70,7 +70,3 @@ def validate_settings(args: argparse.Namespace) -> None:
     if args.max_wordforms_per_window is not None and args.max_wordforms_per_window <= 0:
         raise ValueError("max_wordforms_per_window must be positive when provided.")
 
-
-# ---------------------------------------------------------------------------
-# Time windows and vowel parsing
-# ---------------------------------------------------------------------------
