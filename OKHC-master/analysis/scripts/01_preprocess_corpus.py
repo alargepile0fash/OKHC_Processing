@@ -3,11 +3,13 @@
 from pathlib import Path
 import os
 import shutil
+import sys
 
 import pandas as pd
 from tqdm import tqdm
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT))
 
 from preprocessing.text_preprocessing import process_dataframe
 from preprocessing.classification_logic import classify_dataframe
