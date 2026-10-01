@@ -79,7 +79,7 @@ def test_harmony_classification() -> None:
         (["ㅏ", "ㅑ"], "unclassifiable_due_to_other", "harmonic"),
         (["ㅏ", "ㅘ"], "unclassifiable_due_to_other", "harmonic"),
         (["ㅘ", "ㅝ"], "unclassifiable_due_to_other", "disharmonic"),
-        (["ㅏ", "ㅢ"], "unclassifiable_due_to_other", "harmonic"),
+        (["ㅏ", "ㅢ"], "unclassifiable_due_to_other", "disharmonic"),
     ]
 
     for vowels, expected_core, expected_expanded in cases:
@@ -95,8 +95,39 @@ def test_harmony_classification() -> None:
     print("PASS: core and nucleus-based expanded harmony classifications behave as expected.")
 
 
+def test_sampling_max_word_vowels() -> None:
+    """Exercise the upper word-vowel bound with a deterministic synthetic chunk."""
+    from argparse import Namespace
+    from analysis.scripts.sampling_logic.corpus import prepare_chunk
+
+    args = Namespace(
+        year_col="year",
+        token_col="token",
+        vowels_col="vowels",
+        start_year=None,
+        min_word_vowels=2,
+        max_word_vowels=2,
+        window_width=25,
+        window_step=25,
+    )
+    chunk = pd.DataFrame([
+        {"year": 1500, "token": "aa", "vowels": "ㅏ,ㅗ", "token_source": "original_hangul_token"},
+        {"year": 1500, "token": "bbb", "vowels": "ㅏ,ㅗ,ㅏ", "token_source": "original_hangul_token"},
+    ])
+    prepared = prepare_chunk(chunk, args, anchor_year=1500)
+
+    if set(prepared["token"]) != {"aa"}:
+        raise AssertionError(
+            "max_word_vowels test failed: a three-vowel wordform survived "
+            "the configured two-vowel upper bound."
+        )
+
+    print("PASS: max_word_vowels upper bound excludes over-limit wordforms.")
+
+
 def main() -> None:
     test_harmony_classification()
+    test_sampling_max_word_vowels()
     config = load_config(parse_args().config)
 
     if config["output_dir"].exists():
