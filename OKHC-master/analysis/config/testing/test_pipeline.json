@@ -1,0 +1,6 @@
+{
+  "preprocessing_config": "analysis/config/testing/preprocessing_test.json",
+  "extraction_config": "analysis/config/testing/extraction_test.json",
+  "sampling_config": "analysis/config/testing/sampling_test.json",
+  "output_dir": "analysis/tests/output"
+}

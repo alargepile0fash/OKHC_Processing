@@ -13,7 +13,7 @@ import pandas as pd
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = REPO_ROOT / "analysis" / "config" / "test_pipeline.json"
+DEFAULT_CONFIG = REPO_ROOT / "analysis" / "config" / "testing" / "test_pipeline.json"
 
 
 def load_config(path: Path) -> dict:
@@ -90,12 +90,11 @@ def main() -> None:
     sampling_config = load_json(config["sampling_config"])
 
     extracted_file = REPO_ROOT / extraction_config["output_file"]
-    sampling_output_dir = (
+    sampled_file = (
         REPO_ROOT
-        / sampling_config["runs_dir"]
-        / sampling_config["run_name"]
+        / sampling_config["output_dir"]
+        / "sampled_time_window_wordforms.csv"
     )
-    sampled_file = sampling_output_dir / "sampled_time_window_wordforms.csv"
 
     extracted = pd.read_csv(extracted_file, encoding="utf-8-sig")
     sampled = pd.read_csv(sampled_file, encoding="utf-8-sig")

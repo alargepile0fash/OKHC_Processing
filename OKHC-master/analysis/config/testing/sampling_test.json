@@ -9,7 +9,7 @@
   "window_step": 25,
   "start_year": null,
   "min_word_vowels": 2,
-  "max_word_vowels": 5,
+  "max_word_vowels": 2,
   "chunksize": 250000,
   "min_window_wordforms": 0,
   "min_window_tokens": 0,
