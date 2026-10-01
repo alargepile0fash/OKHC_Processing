@@ -42,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--window-step", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--start-year", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--min-word-vowels", type=int, default=argparse.SUPPRESS)
+    parser.add_argument("--max-word-vowels", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--chunksize", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--min-window-wordforms", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--min-window-tokens", type=int, default=argparse.SUPPRESS)
@@ -67,6 +68,8 @@ def validate_settings(args: argparse.Namespace) -> None:
         raise ValueError("window_width and window_step must be positive.")
     if args.min_word_vowels < 1:
         raise ValueError("min_word_vowels must be at least 1.")
+    if args.max_word_vowels is not None and args.max_word_vowels < args.min_word_vowels:
+        raise ValueError("max_word_vowels must be at least min_word_vowels when provided.")
     if args.target_wordforms_per_window <= 0:
         raise ValueError("target_wordforms_per_window must be positive.")
     if args.min_window_wordforms < 0 or args.min_window_tokens < 0:
