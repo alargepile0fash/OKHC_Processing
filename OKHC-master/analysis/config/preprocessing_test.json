@@ -1,0 +1,9 @@
+{
+  "input_dir": "analysis/tests",
+  "output_dir": "analysis/tests/output/processed",
+  "chunk_size": 10000,
+  "skip_existing_output": false,
+  "input_patterns": [
+    "*.jsonl"
+  ]
+}
