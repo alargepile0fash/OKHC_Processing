@@ -11,7 +11,7 @@ def make_window_diagnostics(wordforms: pd.DataFrame, args: argparse.Namespace) -
     """Decide which time windows can enter the analysis sample."""
     diagnostics = (
         wordforms.groupby(
-            ["time_window_start", "time_window_end", "time_window_id", "time_window_id"],
+            ["time_window_start", "time_window_end", "time_window_id"],
             as_index=False,
         )
         .agg(
