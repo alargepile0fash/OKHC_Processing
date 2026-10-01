@@ -11,7 +11,7 @@ import regex as re
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RESOURCE_DIRS = [
+IDU_RESOURCE_CANDIDATE_DIRS = [
     REPO_ROOT / "idu" / "resources",
     REPO_ROOT / "preprocessing" / "resources",
     REPO_ROOT / "analysis" / "resources",
@@ -21,6 +21,7 @@ RESOURCE_DIRS = [
 IDU_DICTIONARY_FILENAME = "idu_dictionary.jsonl"
 IDU_EXCLUSIONS_FILENAME = "idu_exclusions.json"
 IDU_NOUN_EXCLUSIONS_FILENAME = "idu_noun_exclusions.json"
+IDU_HEADS_FILENAME = "idu_heads.json"
 
 ENABLE_IDU_DICTIONARY_HANGUL_CORRESPONDENCES = True
 EMIT_IDU_GENERAL_EXCLUSION_MATCHES = False
