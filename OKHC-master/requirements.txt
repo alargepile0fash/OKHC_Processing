@@ -8,4 +8,4 @@ pyahocorasick
 pyarrow
 regex
 tqdm
-algophon
+algophon==0.1.7
