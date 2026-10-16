@@ -1,0 +1,11 @@
+{
+  "input": "analysis/data/runs/25yr_step25/sampled_time_window_wordforms.csv",
+  "output_dir": "analysis/data/runs/25yr_step25/d2l_core",
+  "vowel_seq_col": "vowel_seq",
+  "window_id_col": "time_window_id",
+  "wordform_id_col": "wordform_id",
+  "token_col": "token",
+  "core_only": true,
+  "min_vowels": 2,
+  "write_window_pair_files": true
+}
