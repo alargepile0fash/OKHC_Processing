@@ -1,0 +1,10 @@
+﻿time_window_id,d2l_ur,d2l_sr,predicted_sr,lexical_type_weight,pair_full_form_correct,prediction_N_per_lexical_type,prediction_correct_per_lexical_type,prediction_exceptions_per_lexical_type,weighted_prediction_N,weighted_prediction_correct,weighted_prediction_exceptions
+1443-1542,ㅏO,ㅏㅗ,ㅏㅗ,1,True,1,1,0,1,1,0
+1443-1542,ㅗA,ㅗㅏ,ㅗㅏ,1,True,1,1,0,1,1,0
+1443-1542,ㅗOEO,ㅗㅗㅓ,ㅗㅗㅏ,1,False,2,1,1,2,1,1
+1443-1542,ㅜAUU,ㅜㅏㅜㅜ,ㅜㅓㅜㅜ,1,False,3,2,1,3,2,1
+1443-1542,ㅣEOEO,ㅣㅓㅓ,ㅣㅓㅓ,1,True,2,2,0,2,2,0
+1443-1542,ㆍARAE,ㆍㆍ,ㆍㆍ,1,True,1,1,0,1,1,0
+1443-1542,ㆍOA,ㆍㅗㅏ,ㆍㅗㅏ,1,True,2,2,0,2,2,0
+1443-1542,ㆍOㅣ,ㆍㅗㅣ,ㆍㅗㅣ,2,True,1,1,0,2,2,0
+1443-1542,ㆍㅣEU,ㆍㅣㅡ,ㆍㅣㅡ,1,True,1,1,0,1,1,0

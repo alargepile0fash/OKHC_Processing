@@ -1,0 +1,13 @@
+﻿time_window_start,time_window_end,time_window_id,available_wordforms_before_sampling,total_token_count_represented_before_sampling,sampling_mode,target_wordforms_per_window,min_window_wordforms_for_warning,min_window_tokens,max_wordforms_per_window,window_width_years,window_step_years,window_overlap_years,time_window_is_low_n_warning,time_window_is_eligible_for_sampling,time_window_exclusion_reason,selected_sample_size_for_window
+1443,1542,1443-1542,23,26,cap-preserve-windows,1000,1000,0,,100,50,50,True,True,INCLUDED,23
+1493,1592,1493-1592,136,202,cap-preserve-windows,1000,1000,0,,100,50,50,True,True,INCLUDED,136
+1543,1642,1543-1642,521,731,cap-preserve-windows,1000,1000,0,,100,50,50,True,True,INCLUDED,521
+1593,1692,1593-1692,3412,7865,cap-preserve-windows,1000,1000,0,,100,50,50,False,True,INCLUDED,1000
+1643,1742,1643-1742,9837,33091,cap-preserve-windows,1000,1000,0,,100,50,50,False,True,INCLUDED,1000
+1693,1792,1693-1792,9652,29767,cap-preserve-windows,1000,1000,0,,100,50,50,False,True,INCLUDED,1000
+1743,1842,1743-1842,11218,29194,cap-preserve-windows,1000,1000,0,,100,50,50,False,True,INCLUDED,1000
+1793,1892,1793-1892,120049,618797,cap-preserve-windows,1000,1000,0,,100,50,50,False,True,INCLUDED,1000
+1843,1942,1843-1942,6765893,68501030,cap-preserve-windows,1000,1000,0,,100,50,50,False,True,INCLUDED,1000
+1893,1992,1893-1992,9782143,115769384,cap-preserve-windows,1000,1000,0,,100,50,50,False,True,INCLUDED,1000
+1943,2042,1943-2042,4309936,47862560,cap-preserve-windows,1000,1000,0,,100,50,50,False,True,INCLUDED,1000
+1993,2092,1993-2092,463,598,cap-preserve-windows,1000,1000,0,,100,50,50,True,True,INCLUDED,463
