@@ -1,0 +1,31 @@
+{
+  "config": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\config\\d2l_run_default.json",
+  "input": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\data\\runs\\100yr_step50\\d2l_core\\d2l_weighted_pairs.csv",
+  "output_dir": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\data\\runs\\100yr_step50\\d2l_results",
+  "feature_file": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\config\\korean_d2l_core_inventory_features.tsv",
+  "baseline_summary": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\data\\runs\\100yr_step50\\baseline\\baseline_exception_rate_by_window.csv",
+  "window_id_col": "time_window_id",
+  "ur_col": "d2l_ur",
+  "sr_col": "d2l_sr",
+  "weight_col": "lexical_type_weight",
+  "make_graphs": true,
+  "write_pair_predictions": true,
+  "surface_vowels": [
+    "ㆍ",
+    "ㅏ",
+    "ㅗ",
+    "ㅡ",
+    "ㅓ",
+    "ㅜ",
+    "ㅣ"
+  ],
+  "abstract_targets": {
+    "ㅏ": "A",
+    "ㅓ": "EO",
+    "ㅗ": "O",
+    "ㅜ": "U",
+    "ㆍ": "ARAE",
+    "ㅡ": "EU"
+  },
+  "analysis_note": "One fresh lexical-type-weighted D2L model is trained independently per historical time window."
+}
