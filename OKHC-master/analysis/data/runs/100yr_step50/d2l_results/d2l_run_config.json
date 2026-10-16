@@ -27,5 +27,5 @@
     "ㆍ": "ARAE",
     "ㅡ": "EU"
   },
-  "analysis_note": "One fresh lexical-type-weighted D2L model is trained independently per historical time window."
+  "analysis_note": "Fresh weighted D2L models are trained independently by window. Recursive failed rule/tier attempts and all failed prediction contexts are retained for diagnosis."
 }
