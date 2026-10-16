@@ -1,6 +1,6 @@
 {
-  "input": "analysis/data/runs/25yr_step25/sampled_time_window_wordforms.csv",
-  "output_dir": "analysis/data/runs/25yr_step25/d2l_core",
+  "input": "analysis/data/runs/100yr_step50/sampled_time_window_wordforms.csv",
+  "output_dir": "analysis/data/runs/100yr_step50/d2l_core",
   "vowel_seq_col": "vowel_seq",
   "window_id_col": "time_window_id",
   "wordform_id_col": "wordform_id",

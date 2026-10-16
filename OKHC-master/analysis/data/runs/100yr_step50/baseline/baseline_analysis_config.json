@@ -1,0 +1,11 @@
+{
+  "config": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\config\\baseline_default.json",
+  "input": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\data\\runs\\100yr_step50\\d2l_core\\d2l_wordforms.csv",
+  "output_dir": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\data\\runs\\100yr_step50\\baseline",
+  "window_id_col": "time_window_id",
+  "vowel_seq_col": "d2l_sr",
+  "initial_i_policy": "unscored",
+  "write_wordform_details": true,
+  "make_graphs": true,
+  "baseline_definition": "Initial harmonic vowel triggers RTR agreement on later core harmonic vowels; ㅣ is not scored as a target. Initial ㅣ handling is controlled by initial_i_policy."
+}
