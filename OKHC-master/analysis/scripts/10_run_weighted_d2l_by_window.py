@@ -33,7 +33,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from d2l_logic.weighted_d2l import WeightedD2L
+from d2l_logic.korean_weighted_d2l import KoreanProgressiveWeightedD2L
 
 
 DEFAULT_CONFIG = PROJECT_ROOT / "analysis" / "config" / "d2l_run_default.json"
@@ -133,8 +133,8 @@ def validate_input_columns(df: pd.DataFrame, args: argparse.Namespace) -> None:
         )
 
 
-def build_model(feature_file: Path) -> WeightedD2L:
-    model = WeightedD2L(ipa_file_path=str(feature_file))
+def build_model(feature_file: Path) -> KoreanProgressiveWeightedD2L:
+    model = KoreanProgressiveWeightedD2L(ipa_file_path=str(feature_file))
     model.seginv.add_segs(set(SURFACE_VOWELS))
 
     for surface, abstract in ABSTRACT_TARGETS.items():
@@ -167,7 +167,7 @@ def tp_pass(n: int, m: int) -> bool:
 
 
 def make_weighted_pairs(
-    model: WeightedD2L,
+    model: KoreanProgressiveWeightedD2L,
     group: pd.DataFrame,
     args: argparse.Namespace,
 ):
@@ -193,7 +193,7 @@ def make_weighted_pairs(
     return triples
 
 
-def tier_excluded_surface_segments(model: WeightedD2L) -> list[str]:
+def tier_excluded_surface_segments(model: KoreanProgressiveWeightedD2L) -> list[str]:
     if model.rule is None or model.rule.tier is None:
         return []
 
@@ -204,7 +204,7 @@ def tier_excluded_surface_segments(model: WeightedD2L) -> list[str]:
     ]
 
 
-def tier_included_surface_segments(model: WeightedD2L) -> list[str]:
+def tier_included_surface_segments(model: KoreanProgressiveWeightedD2L) -> list[str]:
     if model.rule is None:
         return []
     if model.rule.tier is None:
@@ -217,20 +217,20 @@ def tier_included_surface_segments(model: WeightedD2L) -> list[str]:
     ]
 
 
-def model_direction(model: WeightedD2L) -> str | None:
+def model_direction(model: KoreanProgressiveWeightedD2L) -> str | None:
     if model.rule is None:
         return None
     return "left_to_right" if model.rule.left_to_right else "right_to_left"
 
 
-def model_harmony_type(model: WeightedD2L) -> str | None:
+def model_harmony_type(model: KoreanProgressiveWeightedD2L) -> str | None:
     if model.rule is None:
         return None
     return "harmony" if model.rule.harmony else "disharmony"
 
 
 def pair_prediction_rows(
-    model: WeightedD2L,
+    model: KoreanProgressiveWeightedD2L,
     window_id: object,
 ) -> list[dict]:
     if model.rule is None:
@@ -271,7 +271,7 @@ def pair_prediction_rows(
     return rows
 
 
-def trace_summary_fields(model: WeightedD2L) -> dict:
+def trace_summary_fields(model: KoreanProgressiveWeightedD2L) -> dict:
     fields = {}
 
     for branch in ("harmony", "disharmony"):
@@ -367,6 +367,9 @@ def analyze_window(
         "d2l_TP_pass": False,
         "weighted_prediction_accuracy": float("nan"),
         "weighted_full_form_accuracy": float("nan"),
+        "analysis_direction_constraint": "left_to_right",
+        "analysis_harmony_constraint": "harmony_only",
+        "initial_position_forced_to_project": True,
     }
 
     model = build_model(feature_file)
@@ -476,6 +479,10 @@ def build_failure_context_summary(events: pd.DataFrame) -> pd.DataFrame:
         work["weighted_count"]
         * work["used_default"].astype(int)
     )
+    work["weighted_protected_initial_context_errors"] = (
+        work["weighted_count"]
+        * work["context_is_protected_initial_position"].astype(int)
+    )
 
     summary = (
         work.groupby(group_cols, dropna=False, as_index=False)
@@ -495,6 +502,10 @@ def build_failure_context_summary(events: pd.DataFrame) -> pd.DataFrame:
                 "sum",
             ),
             weighted_default_errors=("weighted_default_errors", "sum"),
+            weighted_protected_initial_context_errors=(
+                "weighted_protected_initial_context_errors",
+                "sum",
+            ),
         )
     )
 
@@ -734,9 +745,11 @@ def write_run_config(
     settings["surface_vowels"] = SURFACE_VOWELS
     settings["abstract_targets"] = ABSTRACT_TARGETS
     settings["analysis_note"] = (
-        "Fresh weighted D2L models are trained independently by window. "
-        "Recursive failed rule/tier attempts and all failed prediction "
-        "contexts are retained for diagnosis."
+        "Fresh Korean-constrained weighted D2L models are trained independently "
+        "by window. Harmony is fixed left-to-right, disharmony is not evaluated, "
+        "and the word-initial segment is forced to project to every tier. "
+        "Recursive failed rule/tier attempts and all failed prediction contexts "
+        "are retained for diagnosis."
     )
 
     with (output_dir / "d2l_run_config.json").open(
@@ -787,6 +800,7 @@ def main() -> None:
     )
 
     print(f"Historical windows to analyze: {len(windows):,}")
+    print("Analysis mode: progressive harmony only; initial trigger protected")
     print()
 
     result_rows = []
