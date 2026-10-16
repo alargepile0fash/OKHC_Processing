@@ -4,12 +4,9 @@ The learner still discovers discrepancies, contexts, natural classes, and tiers
 from UNIQUE structural UR/SR pairs. Numerical productivity evidence is then
 computed using lexical-type weights.
 
-Input to train_weighted():
-    (UR, SR, lexical_type_weight)
-
-where weight is the number of sampled lexical wordform rows in the same time
-window that share that vowel-only UR/SR pair. Corpus token frequency is not
-used as weight.
+In addition to matching the learning behavior, this class records a diagnostic
+trace of every recursive D2L attempt. The trace is observational only: it does
+not change which rule or tier is learned.
 """
 
 from __future__ import annotations
@@ -25,8 +22,12 @@ from algophon.utils import tsp
 from .weighted_rule import WeightedRule
 
 
+def _stable_symbols(items) -> str:
+    return " ".join(sorted(str(item) for item in items))
+
+
 class WeightedD2L(D2L):
-    """D2L with lexical-type-weighted TSP/default/accuracy calculations."""
+    """D2L with lexical-type-weighted evidence and diagnostic tracing."""
 
     def __init__(
         self,
@@ -36,14 +37,27 @@ class WeightedD2L(D2L):
         super().__init__(ipa_file_path=ipa_file_path, sep=sep)
         self.pair_weights = {}
         self.training_pairs = set()
+        self.analysis_trace = []
+        self.prediction_events = []
 
     def train_weighted(self, weighted_pairs: Iterable) -> "WeightedD2L":
         """Train on an iterable of (UR, SR, lexical_type_weight) triples."""
+        self.analysis_trace = []
+        self.prediction_events = []
+
         pairs = self._weighted_train_setup(weighted_pairs)
         self.training_pairs = pairs
 
-        harmony_rule = self.build_rule(pairs=pairs, harmony=True)
-        disharmony_rule = self.build_rule(pairs=pairs, harmony=False)
+        harmony_rule = self.build_rule(
+            pairs=pairs,
+            harmony=True,
+            _depth=0,
+        )
+        disharmony_rule = self.build_rule(
+            pairs=pairs,
+            harmony=False,
+            _depth=0,
+        )
 
         if harmony_rule and not disharmony_rule:
             self.rule = harmony_rule
@@ -90,9 +104,6 @@ class WeightedD2L(D2L):
         if not weighted_pairs:
             raise ValueError("Cannot train D2L on an empty dataset.")
 
-        # Merge duplicate input rows before stock D2L turns structural pairs
-        # into a set. String keys are sufficient because UR/SR strings are the
-        # representation whose lexical multiplicity we intend to preserve.
         raw_weights = defaultdict(int)
         representatives = {}
 
@@ -113,7 +124,6 @@ class WeightedD2L(D2L):
             raw_weights[key] += weight
             representatives[key] = (ur, sr)
 
-        # This preserves Belth's abstract-UR inference and Discrepancy logic.
         pairs = super()._train_setup(list(representatives.values()))
 
         self.pair_weights = {}
@@ -154,6 +164,31 @@ class WeightedD2L(D2L):
         """Return lexical-type-weighted full-form accuracy."""
         return self.weighted_pair_accuracy(pairs=pairs)
 
+    def _record_prediction_events(
+        self,
+        rule: WeightedRule,
+        pairs: set,
+        branch: str,
+        depth: int,
+        candidate_direction: str,
+        selected_candidate: bool,
+    ) -> None:
+        for event in rule.prediction_diagnostics(
+            pairs=pairs,
+            pair_weights=self.pair_weights,
+            errors_only=True,
+        ):
+            event = dict(event)
+            event.update(
+                {
+                    "branch": branch,
+                    "attempt_depth": depth,
+                    "candidate_direction": candidate_direction,
+                    "selected_candidate": selected_candidate,
+                }
+            )
+            self.prediction_events.append(event)
+
     def build_rule(
         self,
         pairs: set,
@@ -161,8 +196,9 @@ class WeightedD2L(D2L):
         tier=None,
         harmony: bool = True,
         discrepancy: Union[None, Discrepancy] = None,
+        _depth: int = 0,
     ):
-        """Belth's recursive rule builder with weighted numerical evidence."""
+        """Belth's recursive rule builder with weighted evidence and tracing."""
         delset = set() if delset is None else delset
         if discrepancy is None:
             discrepancy = self._discrepancy
@@ -223,20 +259,86 @@ class WeightedD2L(D2L):
                 }
             )
 
-        left_acc = left_rule.accuracy(
+        left_n, left_m = left_rule.tsp_stats(
             pairs=pairs,
             pair_weights=self.pair_weights,
         )
-        right_acc = right_rule.accuracy(
+        right_n, right_m = right_rule.tsp_stats(
             pairs=pairs,
             pair_weights=self.pair_weights,
         )
-        rule = left_rule if left_acc >= right_acc else right_rule
+        left_acc = left_m / left_n if left_n else 0.0
+        right_acc = right_m / right_n if right_n else 0.0
 
-        n, m = rule.tsp_stats(
-            pairs=pairs,
-            pair_weights=self.pair_weights,
+        choose_left = left_acc >= right_acc
+        rule = left_rule if choose_left else right_rule
+        n, m = (left_n, left_m) if choose_left else (right_n, right_m)
+        e = n - m
+        branch = "harmony" if harmony else "disharmony"
+        selected_direction = "left_to_right" if choose_left else "right_to_left"
+
+        self._record_prediction_events(
+            left_rule,
+            pairs,
+            branch,
+            _depth,
+            "left_to_right",
+            choose_left,
         )
+        self._record_prediction_events(
+            right_rule,
+            pairs,
+            branch,
+            _depth,
+            "right_to_left",
+            not choose_left,
+        )
+
+        trace_row = {
+            "branch": branch,
+            "attempt_depth": _depth,
+            "tier_before": str(tier) if tier is not None else "NONE",
+            "delset_before": _stable_symbols(delset),
+            "target_segments": _stable_symbols(target),
+            "left_contexts": _stable_symbols(lctxts),
+            "right_contexts": _stable_symbols(rctxts),
+            "left_prediction_N": int(left_n),
+            "left_prediction_correct": int(left_m),
+            "left_prediction_exceptions": int(left_n - left_m),
+            "left_accuracy": left_acc,
+            "right_prediction_N": int(right_n),
+            "right_prediction_correct": int(right_m),
+            "right_prediction_exceptions": int(right_n - right_m),
+            "right_accuracy": right_acc,
+            "selected_direction": selected_direction,
+            "selected_prediction_N": int(n),
+            "selected_prediction_correct": int(m),
+            "selected_prediction_exceptions": int(e),
+            "selected_accuracy": m / n if n else 0.0,
+            "theta_N": (n / __import__("math").log(n)) if n > 1 else None,
+            "TP_pass": bool(tsp(n=n, m=m)),
+            "left_default": (
+                _stable_symbols(left_rule.defaults.items())
+                if left_rule.defaults is not None
+                else ""
+            ),
+            "right_default": (
+                _stable_symbols(right_rule.defaults.items())
+                if right_rule.defaults is not None
+                else ""
+            ),
+            "terminal_status": "",
+            "left_errant_contexts": "",
+            "right_errant_contexts": "",
+            "all_errant_contexts": "",
+            "protected_target_contexts_removed": "",
+            "new_delset_segments": "",
+            "delset_after": "",
+            "tier_candidate_type": "",
+            "tier_after": "",
+            "natural_class_options": "",
+            "chosen_natural_class": "",
+        }
 
         if tsp(n=n, m=m):
             ctxt = set(
@@ -257,16 +359,33 @@ class WeightedD2L(D2L):
                 )
                 if acc_after < acc_before:
                     rule.set_ctxts(ctxt)
+
+            trace_row["terminal_status"] = "TP_PASS"
+            trace_row["tier_after"] = (
+                str(rule.tier) if rule.tier is not None else "NONE"
+            )
+            self.analysis_trace.append(trace_row)
             return rule
 
-        # Structural error identities stay unweighted. Their frequency already
-        # mattered above, in the weighted TSP decision that got us here.
+        left_errant = left_rule.errant_ctxts(pairs)
+        right_errant = right_rule.errant_ctxts(pairs)
+        all_errant = left_errant.union(right_errant)
+        protected = all_errant.intersection(target)
+
         old_delset = set(delset)
-        delset = delset.union(
-            left_rule.errant_ctxts(pairs).union(
-                right_rule.errant_ctxts(pairs)
-            )
-        ).difference(target)
+        delset = delset.union(all_errant).difference(target)
+        new_delset = delset.difference(old_delset)
+
+        trace_row.update(
+            {
+                "left_errant_contexts": _stable_symbols(left_errant),
+                "right_errant_contexts": _stable_symbols(right_errant),
+                "all_errant_contexts": _stable_symbols(all_errant),
+                "protected_target_contexts_removed": _stable_symbols(protected),
+                "new_delset_segments": _stable_symbols(new_delset),
+                "delset_after": _stable_symbols(delset),
+            }
+        )
 
         opts = [
             NatClass(feats={feat}, seginv=self.seginv)
@@ -277,6 +396,10 @@ class WeightedD2L(D2L):
             if not any(ur in opt for ur in target)
         ]
 
+        trace_row["natural_class_options"] = " || ".join(
+            sorted(str(opt) for opt in opts)
+        )
+
         if opts:
             best = sorted(
                 opts,
@@ -285,6 +408,8 @@ class WeightedD2L(D2L):
                     f"{opt}",
                 ),
             )[0]
+            trace_row["chosen_natural_class"] = str(best)
+
             negate_val = {"+": "-", "-": "+"}
             complement = NatClass(
                 feats={
@@ -299,18 +424,28 @@ class WeightedD2L(D2L):
                 == complement.extension()
             ):
                 tier = Tier(seginv=self.seginv, feats=complement)
+                trace_row["tier_candidate_type"] = "NATURAL_CLASS_COMPLEMENT"
             else:
                 tier = Tier(
                     seginv=self.seginv,
                     feats=best,
                     as_delset=True,
                 )
+                trace_row["tier_candidate_type"] = "NATURAL_CLASS_DELETION"
         else:
             complement = self.seginv.segs.difference(delset)
             tier = Tier(seginv=self.seginv, segs=complement)
+            trace_row["tier_candidate_type"] = "EXPLICIT_SEGMENT_COMPLEMENT"
+
+        trace_row["tier_after"] = str(tier)
 
         if old_delset == delset:
+            trace_row["terminal_status"] = "NO_NEW_REMOVABLE_CONTEXTS"
+            self.analysis_trace.append(trace_row)
             return None
+
+        trace_row["terminal_status"] = "RECURSE"
+        self.analysis_trace.append(trace_row)
 
         return self.build_rule(
             pairs=pairs,
@@ -318,4 +453,5 @@ class WeightedD2L(D2L):
             tier=tier,
             harmony=harmony,
             discrepancy=discrepancy,
+            _depth=_depth + 1,
         )
