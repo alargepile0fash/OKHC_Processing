@@ -1,0 +1,31 @@
+{
+  "config": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\config\\d2l_input_default.json",
+  "input": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\data\\runs\\25yr_step25\\sampled_time_window_wordforms.csv",
+  "output_dir": "C:\\Users\\ashle\\PycharmProjects\\OKHC_Processing\\OKHC-master\\analysis\\data\\runs\\25yr_step25\\d2l_core",
+  "vowel_seq_col": "vowel_seq",
+  "window_id_col": "time_window_id",
+  "wordform_id_col": "wordform_id",
+  "token_col": "token",
+  "min_vowels": 2,
+  "core_only": true,
+  "write_window_pair_files": true,
+  "core_vowels": [
+    "ㅏ",
+    "ㅓ",
+    "ㅗ",
+    "ㅜ",
+    "ㅡ",
+    "ㅣ",
+    "ㆍ"
+  ],
+  "abstract_targets": {
+    "ㅏ": "A",
+    "ㅓ": "EO",
+    "ㅗ": "O",
+    "ㅜ": "U",
+    "ㆍ": "ARAE",
+    "ㅡ": "EU"
+  },
+  "representation_note": "First vowel specified; later harmonic vowels RTR-underspecified via named targets; ㅣ remains fully specified.",
+  "weight_definition": "Number of sampled lexical wordform rows in the same time window sharing an identical vowel-only D2L UR/SR pair. Corpus token frequency is not used as weight."
+}
