@@ -1,0 +1,12 @@
+{
+  "input": "analysis/data/runs/100yr_step50/d2l_core/d2l_weighted_pairs.csv",
+  "output_dir": "analysis/data/runs/100yr_step50/d2l_results",
+  "feature_file": "analysis/config/korean_d2l_core_inventory_features.tsv",
+  "baseline_summary": "analysis/data/runs/100yr_step50/baseline/baseline_exception_rate_by_window.csv",
+  "window_id_col": "time_window_id",
+  "ur_col": "d2l_ur",
+  "sr_col": "d2l_sr",
+  "weight_col": "lexical_type_weight",
+  "make_graphs": true,
+  "write_pair_predictions": true
+}
