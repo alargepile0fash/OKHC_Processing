@@ -180,11 +180,13 @@ class WeightedRule(Rule):
                     context_symbol = str(ctxt)
                     protected_target_context = ctxt in self.target
                     boundary_context = ctxt_original_idx is None
+                    protected_initial_context = ctxt_original_idx == 0
                     eligible_for_delset = (
                         (not correct)
                         and uses_rule_context
                         and (not boundary_context)
                         and (not protected_target_context)
+                        and (not protected_initial_context)
                     )
 
                     event = {
@@ -222,6 +224,9 @@ class WeightedRule(Rule):
                         "used_default": not bool(uses_rule_context),
                         "context_is_protected_abstract_target": bool(
                             protected_target_context
+                        ),
+                        "context_is_protected_initial_position": bool(
+                            protected_initial_context
                         ),
                         "context_is_boundary": bool(boundary_context),
                         "eligible_for_delset_under_current_rule": bool(
